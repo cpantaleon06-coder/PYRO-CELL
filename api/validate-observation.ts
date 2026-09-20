@@ -140,13 +140,24 @@ function extractJson(text: string): Record<string, unknown> | null {
 }
 
 export default async function handler(req: Request): Promise<Response> {
-  if (req.method !== "POST") {
-    return json({ error: "Método no permitido. Usa POST." }, 405);
-  }
-
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
     return json({ error: "GROQ_API_KEY no está configurada en el entorno del servidor." }, 500);
+  }
+
+  // Diagnóstico temporal: GET lista los modelos accesibles con esta clave.
+  if (req.method === "GET") {
+    try {
+      const r = await fetch(`${GROQ_BASE_URL}/models`, { headers: { authorization: `Bearer ${apiKey}` } });
+      const data = (await r.json()) as { data?: { id: string }[] };
+      return json({ models: (data.data ?? []).map((m) => m.id).sort() }, r.status);
+    } catch (err) {
+      return json({ error: "No se pudo listar modelos.", detail: String(err) }, 502);
+    }
+  }
+
+  if (req.method !== "POST") {
+    return json({ error: "Método no permitido. Usa POST." }, 405);
   }
 
   let body: unknown;
