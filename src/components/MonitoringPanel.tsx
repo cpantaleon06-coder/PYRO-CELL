@@ -1,0 +1,167 @@
+import { useMemo, useState } from "react";
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ReferenceDot,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import {
+  ALL_MONTHS,
+  computeMonitoring,
+  MONTH_LABELS,
+  monitoringMonthlySeries,
+  type AlertLevel,
+  type MonitoringDataSource,
+} from "../lib/constants";
+import { REFERENCE_IS_PLACEHOLDER, REFERENCE_SOURCE_LABEL } from "../data/sargassumReference";
+import { StatCard } from "./StatCard";
+
+// Mes actual del sistema (hoy), como default de la posición en la serie.
+const CURRENT_MONTH = ALL_MONTHS[new Date().getMonth()];
+
+const ALERT_META: Record<AlertLevel, { label: string; accent: "surplus" | "energy" | "deficit"; hex: string }> = {
+  verde: { label: "Verde", accent: "surplus", hex: "#7cb86b" },
+  amarillo: { label: "Amarillo", accent: "energy", hex: "#e3a03c" },
+  rojo: { label: "Rojo", accent: "deficit", hex: "#e0654a" },
+};
+
+export function MonitoringPanel() {
+  const [source, setSource] = useState<MonitoringDataSource>("seasonal_projection");
+  const [month, setMonth] = useState<string>(CURRENT_MONTH);
+  const [thresholdTons, setThresholdTons] = useState<number>(10_000);
+
+  const series = useMemo(() => monitoringMonthlySeries(source), [source]);
+  const output = useMemo(
+    () => computeMonitoring({ historicalBloomDataSource: source, alertThresholdTons: thresholdTons }, month),
+    [source, month, thresholdTons]
+  );
+
+  const chartData = series.map((m) => ({ mes: MONTH_LABELS[m.month].slice(0, 3), tons: m.tons, key: m.month }));
+  const selected = chartData.find((d) => d.key === month);
+  const alert = ALERT_META[output.alertLevel];
+  const lineColor = output.dataSourceUsed === "real" ? "#4fb8ae" : "#e3a03c";
+
+  return (
+    <div className="bg-bg-panel border border-border rounded-lg p-5 mb-4">
+      <div className="flex items-center justify-between flex-wrap gap-2 mb-1">
+        <p className="font-display font-semibold text-base">Monitoreo de arribazón (Track 6)</p>
+        <SourceBadge source={output.dataSourceUsed} />
+      </div>
+      <p className="text-xs text-text-muted mb-4">
+        Arquitectura híbrida de dos capas: histórico (Odatis) + proyección estacional
+      </p>
+
+      {source === "odatis_offline_snapshot" && REFERENCE_IS_PLACEHOLDER && (
+        <div className="border border-energy-dim bg-energy-dim/15 rounded px-4 py-2.5 mb-4">
+          <p className="text-xs text-energy leading-relaxed">⚠ {REFERENCE_SOURCE_LABEL}</p>
+        </div>
+      )}
+
+      <div className="grid grid-cols-3 gap-3 mb-4">
+        <StatCard
+          label="Nivel de alerta"
+          value={alert.label}
+          accent={alert.accent}
+          sublabel={`umbral ${(thresholdTons / 1000).toFixed(0)} kt/mes`}
+        />
+        <StatCard
+          label="Arribazón del mes"
+          value={`${(output.currentProjectionTons / 1000).toFixed(1)} kt`}
+          sublabel={MONTH_LABELS[month]}
+        />
+        <StatCard
+          label="Días al umbral"
+          value={output.daysToThreshold === null ? "—" : `${output.daysToThreshold} d`}
+          accent={output.daysToThreshold !== null && output.daysToThreshold <= 30 ? "deficit" : "neutral"}
+          sublabel={output.daysToThreshold === null ? "no se cruza en 12 meses" : "estimado"}
+        />
+      </div>
+
+      <div className="flex items-center gap-4 flex-wrap mb-4">
+        <div>
+          <label className="text-xs text-text-secondary block mb-1">Capa de datos</label>
+          <select
+            value={source}
+            onChange={(e) => setSource(e.target.value as MonitoringDataSource)}
+            className="bg-bg-raised border border-border rounded px-2 py-1.5 text-sm"
+          >
+            <option value="seasonal_projection">Proyección estacional</option>
+            <option value="odatis_offline_snapshot">Histórico (Odatis)</option>
+          </select>
+        </div>
+        <div>
+          <label className="text-xs text-text-secondary block mb-1">Mes</label>
+          <select
+            value={month}
+            onChange={(e) => setMonth(e.target.value)}
+            className="bg-bg-raised border border-border rounded px-2 py-1.5 text-sm"
+          >
+            {ALL_MONTHS.map((m) => (
+              <option key={m} value={m}>{MONTH_LABELS[m]}</option>
+            ))}
+          </select>
+        </div>
+        <div className="flex-1 min-w-40">
+          <label className="text-xs text-text-secondary block mb-1">
+            Umbral de alerta: <span className="text-energy font-data">{(thresholdTons / 1000).toFixed(1)} kt/mes</span>
+          </label>
+          <input
+            type="range"
+            min={2000}
+            max={18000}
+            step={500}
+            value={thresholdTons}
+            onChange={(e) => setThresholdTons(Number(e.target.value))}
+            className="w-full accent-energy"
+          />
+        </div>
+      </div>
+
+      <div className="h-44 -mx-2">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={chartData} margin={{ top: 4, right: 8, bottom: 4, left: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#26404f" vertical={false} />
+            <XAxis dataKey="mes" tick={{ fontSize: 10, fill: "#9fb0ba" }} interval={0} />
+            <YAxis
+              tick={{ fontSize: 10, fill: "#9fb0ba" }}
+              width={40}
+              tickFormatter={(v) => `${(Number(v) / 1000).toFixed(0)}k`}
+            />
+            <Tooltip
+              contentStyle={{ background: "#1a2c3a", border: "1px solid #26404f", fontSize: 12 }}
+              labelStyle={{ color: "#f2eee3" }}
+              formatter={(v) => [`${Number(v).toLocaleString("es-MX")} t`, "Arribazón"]}
+            />
+            <ReferenceLine y={thresholdTons} stroke="#e0654a" strokeDasharray="4 4" strokeWidth={1.5} />
+            <Line type="monotone" dataKey="tons" stroke={lineColor} strokeWidth={2} dot={false} />
+            {selected && <ReferenceDot x={selected.mes} y={selected.tons} r={5} fill={alert.hex} stroke="#0b1620" strokeWidth={2} />}
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
+      <p className="text-xs text-text-muted mt-3 leading-relaxed">
+        La proyección estacional escala la serie de referencia por el factor de año récord 2026 (+15%,
+        estimación propia consistente con el ajuste por año récord del módulo de estacionalidad). Ninguna
+        capa depende de una llamada de red en vivo.
+      </p>
+    </div>
+  );
+}
+
+function SourceBadge({ source }: { source: "real" | "proyectado" }) {
+  const isReal = source === "real";
+  return (
+    <span
+      className={`text-xs font-data px-2 py-0.5 rounded border ${
+        isReal ? "text-water border-water-dim bg-water-dim/20" : "text-energy border-energy-dim bg-energy-dim/20"
+      }`}
+    >
+      {isReal ? "dato: real*" : "dato: proyectado"}
+    </span>
+  );
+}
