@@ -1,29 +1,37 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Poppins:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-display: "Space Grotesk", sans-serif;
-  --font-body: "Inter", sans-serif;
-  --font-data: "IBM Plex Mono", monospace;
+  --font-display: "Space Grotesk", sans-serif; /* encabezados, sans-serif limpio */
+  --font-body: "Poppins", sans-serif; /* cuerpo */
+  --font-data: "IBM Plex Mono", monospace; /* cifras */
 
-  --color-bg-deep: #0b1620;
-  --color-bg-panel: #12202b;
-  --color-bg-raised: #1a2c3a;
-  --color-border: #26404f;
-  --color-border-strong: #35566a;
+  /* Tema claro "blanco papel" */
+  --color-bg-deep: #f4f1e9; /* fondo papel (cálido) */
+  --color-bg-panel: #ffffff; /* tarjetas */
+  --color-bg-raised: #efece2; /* inputs / selects */
+  --color-border: #e4e0d4;
+  --color-border-strong: #cfc9b7;
 
-  --color-text-primary: #f2eee3;
-  --color-text-secondary: #9fb0ba;
-  --color-text-muted: #64747e;
+  --color-text-primary: #17202b; /* tinta */
+  --color-text-secondary: #55606b;
+  --color-text-muted: #8a8f98;
 
-  --color-energy: #e3a03c;
-  --color-energy-dim: #7a5a26;
-  --color-water: #4fb8ae;
-  --color-water-dim: #2a5f59;
-  --color-surplus: #7cb86b;
-  --color-surplus-dim: #3f5c37;
-  --color-deficit: #e0654a;
-  --color-deficit-dim: #6e3629;
+  /* Acento: azul cobalto */
+  --color-accent: #1a46c9;
+  --color-accent-dim: #b7c4ee;
+
+  /* Colores semánticos, ajustados para legibilidad sobre blanco (texto/estado/bordes).
+     Nota: las GRÁFICAS usan sus propios hex brillantes hardcodeados en los componentes,
+     así que estos tonos más profundos no cambian los colores de las gráficas. */
+  --color-energy: #b0740e;
+  --color-energy-dim: #e7c79a;
+  --color-water: #1e8a80;
+  --color-water-dim: #a9d9d3;
+  --color-surplus: #4e8c3f;
+  --color-surplus-dim: #b7d9ac;
+  --color-deficit: #c4472c;
+  --color-deficit-dim: #edb3a4;
 }
 
 body {

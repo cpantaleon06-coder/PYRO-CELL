@@ -115,7 +115,7 @@ export function MonitoringPanel() {
         </div>
         <div className="flex-1 min-w-40">
           <label className="text-xs text-text-secondary block mb-1">
-            Umbral de alerta: <span className="text-energy font-data">{thresholdKm2} km²/mes</span>
+            Umbral de alerta: <span className="text-accent font-data">{thresholdKm2} km²/mes</span>
           </label>
           <input
             type="range"
@@ -124,7 +124,7 @@ export function MonitoringPanel() {
             step={50}
             value={thresholdKm2}
             onChange={(e) => setThresholdKm2(Number(e.target.value))}
-            className="w-full accent-energy"
+            className="w-full accent-accent"
           />
         </div>
       </div>
@@ -132,22 +132,22 @@ export function MonitoringPanel() {
       <div className="h-44 -mx-2">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData} margin={{ top: 4, right: 8, bottom: 4, left: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#26404f" vertical={false} />
-            <XAxis dataKey="mes" tick={{ fontSize: 10, fill: "#9fb0ba" }} interval={0} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#e4e0d4" vertical={false} />
+            <XAxis dataKey="mes" tick={{ fontSize: 10, fill: "#55606b" }} interval={0} />
             <YAxis
-              tick={{ fontSize: 10, fill: "#9fb0ba" }}
+              tick={{ fontSize: 10, fill: "#55606b" }}
               width={44}
               tickFormatter={(v) => `${Number(v).toFixed(0)}`}
-              label={{ value: "km²", angle: -90, position: "insideLeft", fill: "#64747e", fontSize: 10 }}
+              label={{ value: "km²", angle: -90, position: "insideLeft", fill: "#8a8f98", fontSize: 10 }}
             />
             <Tooltip
-              contentStyle={{ background: "#1a2c3a", border: "1px solid #26404f", fontSize: 12 }}
-              labelStyle={{ color: "#f2eee3" }}
+              contentStyle={{ background: "#ffffff", border: "1px solid #e4e0d4", fontSize: 12 }}
+              labelStyle={{ color: "#17202b" }}
               formatter={(v) => [`${Number(v).toFixed(0)} km²  (${fmtTons(areaToEstimatedTons(Number(v)))} est.)`, "Área detectada"]}
             />
             <ReferenceLine y={thresholdKm2} stroke="#e0654a" strokeDasharray="4 4" strokeWidth={1.5} />
             <Line type="monotone" dataKey="km2" stroke={lineColor} strokeWidth={2} dot={false} />
-            {selected && <ReferenceDot x={selected.mes} y={selected.km2} r={5} fill={alert.hex} stroke="#0b1620" strokeWidth={2} />}
+            {selected && <ReferenceDot x={selected.mes} y={selected.km2} r={5} fill={alert.hex} stroke="#ffffff" strokeWidth={2} />}
           </LineChart>
         </ResponsiveContainer>
       </div>

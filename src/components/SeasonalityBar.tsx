@@ -51,7 +51,7 @@ export function SeasonalityBar() {
           step={500}
           value={bufferLevelKg}
           onChange={(e) => setBufferLevelKg(Number(e.target.value))}
-          className="flex-1 min-w-24 accent-water"
+          className="flex-1 min-w-24 accent-accent"
         />
       </div>
     </div>

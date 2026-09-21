@@ -16,7 +16,7 @@ export function EconomicPanel() {
       <p className="font-display font-semibold text-base mb-4">Modelo económico</p>
 
       <label className="text-xs text-text-secondary block mb-1.5">
-        Costo de adquisición: <span className="text-water font-data">{acquisitionCost >= 0 ? "$" : "−$"}{Math.abs(acquisitionCost)}/t</span>
+        Costo de adquisición: <span className="text-accent font-data">{acquisitionCost >= 0 ? "$" : "−$"}{Math.abs(acquisitionCost)}/t</span>
         <span className="text-text-muted"> {acquisitionCost < 0 ? "(tarifa cobrada)" : "(costo pagado)"}</span>
       </label>
       <input
@@ -26,22 +26,22 @@ export function EconomicPanel() {
         step={1}
         value={acquisitionCost}
         onChange={(e) => setAcquisitionCost(Number(e.target.value))}
-        className="w-full mb-4 accent-water"
+        className="w-full mb-4 accent-accent"
       />
 
       <div className="h-36 -mx-2 mb-4">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={CURVE_DATA} margin={{ top: 4, right: 8, bottom: 4, left: 0 }}>
-            <XAxis dataKey="x" tick={{ fontSize: 10, fill: "#9fb0ba" }} tickFormatter={(v) => `$${v}`} />
-            <YAxis tick={{ fontSize: 10, fill: "#9fb0ba" }} width={36} />
+            <XAxis dataKey="x" tick={{ fontSize: 10, fill: "#55606b" }} tickFormatter={(v) => `$${v}`} />
+            <YAxis tick={{ fontSize: 10, fill: "#55606b" }} width={36} />
             <Tooltip
-              contentStyle={{ background: "#1a2c3a", border: "1px solid #26404f", fontSize: 12 }}
-              labelStyle={{ color: "#f2eee3" }}
+              contentStyle={{ background: "#ffffff", border: "1px solid #e4e0d4", fontSize: 12 }}
+              labelStyle={{ color: "#17202b" }}
               formatter={(v) => [`$${Number(v).toFixed(2)}/t`, "Precio de equilibrio"]}
               labelFormatter={(l) => `Adquisición: $${l}/t`}
             />
             <Line type="monotone" dataKey="price" stroke="#4fb8ae" strokeWidth={2} dot={false} />
-            <ReferenceDot x={acquisitionCost} y={price} r={5} fill="#e3a03c" stroke="#0b1620" strokeWidth={2} />
+            <ReferenceDot x={acquisitionCost} y={price} r={5} fill="#e3a03c" stroke="#ffffff" strokeWidth={2} />
           </LineChart>
         </ResponsiveContainer>
       </div>

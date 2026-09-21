@@ -120,7 +120,7 @@ export function ValidationPanel() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-water text-bg-deep font-display font-semibold text-sm rounded px-4 py-2 hover:opacity-90 disabled:opacity-50 transition-opacity"
+            className="w-full bg-accent text-white font-display font-semibold text-sm rounded px-4 py-2 hover:opacity-90 disabled:opacity-50 transition-opacity"
           >
             {loading ? "Validando con IA…" : "Validar observación"}
           </button>
@@ -187,13 +187,13 @@ function ResultCard({
             <div className="flex gap-2">
               <button
                 onClick={() => onDecision("aprobada")}
-                className="flex-1 bg-surplus text-bg-deep font-display font-semibold text-sm rounded px-3 py-1.5 hover:opacity-90 transition-opacity"
+                className="flex-1 bg-surplus text-white font-display font-semibold text-sm rounded px-3 py-1.5 hover:opacity-90 transition-opacity"
               >
                 Aprobar
               </button>
               <button
                 onClick={() => onDecision("rechazada")}
-                className="flex-1 bg-deficit text-bg-deep font-display font-semibold text-sm rounded px-3 py-1.5 hover:opacity-90 transition-opacity"
+                className="flex-1 bg-deficit text-white font-display font-semibold text-sm rounded px-3 py-1.5 hover:opacity-90 transition-opacity"
               >
                 Rechazar
               </button>

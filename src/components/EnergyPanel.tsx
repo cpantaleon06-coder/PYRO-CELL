@@ -26,7 +26,7 @@ export function EnergyPanel() {
       <p className="font-display font-semibold text-base mb-4">Balance energético</p>
 
       <label className="text-xs text-text-secondary block mb-1.5">
-        Temperatura de reactor: <span className="text-energy font-data">{reactorTempC}°C</span>
+        Temperatura de reactor: <span className="text-accent font-data">{reactorTempC}°C</span>
         {reactorTempC === 500 && <span className="text-text-muted"> (diseño)</span>}
       </label>
       <input
@@ -36,7 +36,7 @@ export function EnergyPanel() {
         step={10}
         value={reactorTempC}
         onChange={(e) => setReactorTempC(Number(e.target.value))}
-        className="w-full mb-4 accent-energy"
+        className="w-full mb-4 accent-accent"
       />
 
       <label className="text-xs text-text-secondary block mb-1.5">Modo de secado, Etapa 2</label>
@@ -52,12 +52,12 @@ export function EnergyPanel() {
       <div className="h-36 -mx-2 mb-4">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData} margin={{ top: 4, right: 8, bottom: 4, left: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#26404f" vertical={false} />
-            <XAxis dataKey="etapa" tick={{ fontSize: 10, fill: "#9fb0ba" }} interval={0} />
-            <YAxis tick={{ fontSize: 10, fill: "#9fb0ba" }} width={36} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#e4e0d4" vertical={false} />
+            <XAxis dataKey="etapa" tick={{ fontSize: 10, fill: "#55606b" }} interval={0} />
+            <YAxis tick={{ fontSize: 10, fill: "#55606b" }} width={36} />
             <Tooltip
-              contentStyle={{ background: "#1a2c3a", border: "1px solid #26404f", fontSize: 12 }}
-              labelStyle={{ color: "#f2eee3" }}
+              contentStyle={{ background: "#ffffff", border: "1px solid #e4e0d4", fontSize: 12 }}
+              labelStyle={{ color: "#17202b" }}
             />
             <Bar dataKey="MJ" fill="#e3a03c" radius={[3, 3, 0, 0]} />
           </BarChart>
