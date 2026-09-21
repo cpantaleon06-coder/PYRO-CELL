@@ -24,7 +24,9 @@ import {
 export const config = { runtime: "edge" };
 
 const GROQ_BASE_URL = "https://api.groq.com/openai/v1";
-const GROQ_MODEL = "llama-3.3-70b-versatile";
+// Modelo de Groq disponible en la cuenta (llama-3.3-70b-versatile no está accesible
+// para esta clave; gpt-oss-120b es el modelo de razonamiento más capaz disponible aquí).
+const GROQ_MODEL = "openai/gpt-oss-120b";
 const VALID_MORPHOTYPES: Morphotype[] = ["S_natans_I", "S_natans_VIII", "S_fluitans_III", "unknown"];
 
 function json(body: unknown, status: number): Response {
@@ -143,17 +145,6 @@ export default async function handler(req: Request): Promise<Response> {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
     return json({ error: "GROQ_API_KEY no está configurada en el entorno del servidor." }, 500);
-  }
-
-  // Diagnóstico temporal: GET lista los modelos accesibles con esta clave.
-  if (req.method === "GET") {
-    try {
-      const r = await fetch(`${GROQ_BASE_URL}/models`, { headers: { authorization: `Bearer ${apiKey}` } });
-      const data = (await r.json()) as { data?: { id: string }[] };
-      return json({ models: (data.data ?? []).map((m) => m.id).sort() }, r.status);
-    } catch (err) {
-      return json({ error: "No se pudo listar modelos.", detail: String(err) }, 502);
-    }
   }
 
   if (req.method !== "POST") {
