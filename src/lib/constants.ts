@@ -4,7 +4,11 @@
 // "estimación propia" no están tomadas de ningún estudio citado: son elecciones de
 // diseño del proyecto y deben presentarse como tales.
 
-import { MONTHLY_REFERENCE_TONS, type MonthlyTonnage } from "../data/sargassumReference";
+import {
+  MONTHLY_REFERENCE_DETECTION,
+  WET_TONNES_PER_KM2_DETECTED,
+  type MonthlyDetection,
+} from "../data/sargassumReference";
 
 export const ENERGY_CONSTANTS = {
   // Milledge et al. 2015, DOI 10.5539/enrr.v5n1p28 (medido a 400°C)
@@ -285,23 +289,35 @@ export function deterministicAnomalyFlags(input: CitizenObservationInput): strin
 
 // ---------- Módulo de monitoreo (Track 6) ----------
 // Arquitectura híbrida de dos capas (esquema_datos.md §5):
-//   Capa 1 — histórico real: muestra offline de Odatis (hoy un PLACEHOLDER etiquetado,
-//            ver src/data/sargassumReference.ts).
-//   Capa 2 — proyección: modelo estacional calibrado contra ese histórico.
+//   Capa 1 — histórico real: muestra offline de Odatis (MF-L3S-Sargassum-AFAI-OLCI),
+//            ya descargada y convertida, ver src/data/sargassumReference.ts.
+//   Capa 2 — proyección: modelo estacional calibrado contra ese histórico real.
+//
+// Nota de unidades: el satélite mide ÁREA de sargazo detectada (km²), no toneladas. La
+// métrica principal es el área real; la toneladas es una conversión DERIVADA y estimada
+// (ver WET_TONNES_PER_KM2_DETECTED). El esquema original (esquema_datos.md §5) hablaba de
+// toneladas asumiendo una fuente que no existe como tal; aquí se conserva el tonelaje como
+// estimación explícita sobre el dato real de área.
 
 export type MonitoringDataSource = "odatis_offline_snapshot" | "seasonal_projection";
 export type AlertLevel = "verde" | "amarillo" | "rojo";
 
 export interface MonitoringInput {
   historicalBloomDataSource: MonitoringDataSource;
-  alertThresholdTons: number;
+  alertThresholdAreaKm2: number;
 }
 
 export interface MonitoringOutput {
-  currentProjectionTons: number;
+  currentAreaKm2: number; // medición satelital real (o proyección de la misma)
+  currentEstimatedTons: number; // DERIVADO: área × WET_TONNES_PER_KM2_DETECTED (estimación)
   dataSourceUsed: "real" | "proyectado"; // cuál capa produjo el valor mostrado
   alertLevel: AlertLevel;
   daysToThreshold: number | null;
+}
+
+/** Convierte área detectada (km²) a toneladas húmedas estimadas. DERIVADO, no medido. */
+export function areaToEstimatedTons(areaKm2: number): number {
+  return areaKm2 * WET_TONNES_PER_KM2_DETECTED;
 }
 
 // Factor de ajuste de la proyección para año récord (2026, confirmado por USF Sargassum
@@ -314,37 +330,38 @@ const ALERT_YELLOW_RATIO = 0.7; // amarillo a partir del 70% del umbral
 const DAYS_PER_MONTH = 30.4; // aproximación para daysToThreshold
 
 /** Serie mensual (12 meses, ene-dic) según la capa seleccionada.
- *  - odatis_offline_snapshot: la serie de referencia tal cual (placeholder hoy).
- *  - seasonal_projection: la misma forma estacional, escalada por el factor de año récord. */
-export function monitoringMonthlySeries(source: MonitoringDataSource): MonthlyTonnage[] {
+ *  - odatis_offline_snapshot: la muestra real de Odatis tal cual.
+ *  - seasonal_projection: la misma forma estacional real, escalada por el factor de año récord. */
+export function monitoringMonthlySeries(source: MonitoringDataSource): MonthlyDetection[] {
   if (source === "odatis_offline_snapshot") {
-    return MONTHLY_REFERENCE_TONS;
+    return MONTHLY_REFERENCE_DETECTION;
   }
-  return MONTHLY_REFERENCE_TONS.map((m) => ({
+  return MONTHLY_REFERENCE_DETECTION.map((m) => ({
     month: m.month,
-    tons: Math.round(m.tons * PROJECTION_RECORD_YEAR_FACTOR),
+    areaKm2: Math.round(m.areaKm2 * PROJECTION_RECORD_YEAR_FACTOR * 10) / 10,
+    coveragePct: m.coveragePct,
   }));
 }
 
-function alertLevelFor(tons: number, thresholdTons: number): AlertLevel {
-  if (tons >= thresholdTons) return "rojo";
-  if (tons >= thresholdTons * ALERT_YELLOW_RATIO) return "amarillo";
+function alertLevelFor(areaKm2: number, thresholdKm2: number): AlertLevel {
+  if (areaKm2 >= thresholdKm2) return "rojo";
+  if (areaKm2 >= thresholdKm2 * ALERT_YELLOW_RATIO) return "amarillo";
   return "verde";
 }
 
-/** Días hasta cruzar el umbral, mirando hacia adelante desde `currentMonth` a lo largo
- *  de los próximos 12 meses (con envoltura al año siguiente). Aproximación en meses ×
+/** Días hasta cruzar el umbral (en área), mirando hacia adelante desde `currentMonth` a lo
+ *  largo de los próximos 12 meses (con envoltura al año siguiente). Aproximación en meses ×
  *  días/mes; `null` si no se cruza en el horizonte. */
 function daysToThreshold(
-  series: MonthlyTonnage[],
+  series: MonthlyDetection[],
   currentMonth: string,
-  thresholdTons: number
+  thresholdKm2: number
 ): number | null {
   const startIdx = ALL_MONTHS.indexOf(currentMonth as (typeof ALL_MONTHS)[number]);
   if (startIdx < 0) return null;
   for (let ahead = 0; ahead < 12; ahead++) {
     const m = series[(startIdx + ahead) % 12];
-    if (m.tons >= thresholdTons) {
+    if (m.areaKm2 >= thresholdKm2) {
       return Math.round(ahead * DAYS_PER_MONTH);
     }
   }
@@ -354,11 +371,12 @@ function daysToThreshold(
 export function computeMonitoring(input: MonitoringInput, currentMonth: string): MonitoringOutput {
   const series = monitoringMonthlySeries(input.historicalBloomDataSource);
   const startIdx = ALL_MONTHS.indexOf(currentMonth as (typeof ALL_MONTHS)[number]);
-  const currentProjectionTons = startIdx >= 0 ? series[startIdx].tons : 0;
+  const currentAreaKm2 = startIdx >= 0 ? series[startIdx].areaKm2 : 0;
   return {
-    currentProjectionTons,
+    currentAreaKm2,
+    currentEstimatedTons: Math.round(areaToEstimatedTons(currentAreaKm2)),
     dataSourceUsed: input.historicalBloomDataSource === "odatis_offline_snapshot" ? "real" : "proyectado",
-    alertLevel: alertLevelFor(currentProjectionTons, input.alertThresholdTons),
-    daysToThreshold: daysToThreshold(series, currentMonth, input.alertThresholdTons),
+    alertLevel: alertLevelFor(currentAreaKm2, input.alertThresholdAreaKm2),
+    daysToThreshold: daysToThreshold(series, currentMonth, input.alertThresholdAreaKm2),
   };
 }

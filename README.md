@@ -34,17 +34,17 @@ Abre `http://localhost:5173`.
 2. En **Project Settings → Environment Variables** agrega `GROQ_API_KEY` (créala en https://console.groq.com/keys). Ver `.env.example`.
 3. Deploy. La función queda en `https://<tu-deploy>.vercel.app/api/validate-observation`.
 
-## Track 6 — Monitoreo (nota de honestidad sobre los datos)
+## Track 6 — Monitoreo (dato real de Odatis)
 
-La **Capa 1 (histórico real)** debería venir de una muestra offline del dataset satelital de Météo-France/CNES vía **Odatis** (DOI `10.12770/1eb82d09-77ed-4f63-9f03-2c3516a9713d`, formato NetCDF). Esa muestra **aún no está descargada ni convertida**, así que hoy la app usa un **dataset sintético de referencia (placeholder)** en `src/data/sargassumReference.ts`, calibrado al patrón estacional conocido (marzo-octubre, pico junio-julio) y anclado en orden de magnitud a cifras públicas de Quintana Roo 2025.
+La **Capa 1 (histórico real)** ya usa una **muestra real** del producto satelital **MF-L3S-Sargassum-AFAI-OLCI** de Météo-France/CNRM, distribuido por Ifremer/CERSAT vía **Odatis** (DOI `10.12770/1eb82d09-77ed-4f63-9f03-2c3516a9713d`). El script `scripts/extract_odatis.py` descarga los NetCDF diarios (HTTPS abierto), cuenta los píxeles con `status_of_detections == 0` (sargazo detectado) en la caja del Caribe mexicano (0.0032° de resolución), los convierte a **km² reales** (área por píxel corregida por `cos(lat)`) y promedia días muestreados de **2023–2025**. El resultado vive en `src/data/sargassumReference.ts` (`REFERENCE_IS_PLACEHOLDER = false`).
 
-Está **etiquetado como placeholder** en el código (`REFERENCE_IS_PLACEHOLDER`) y en la UI (banner de advertencia y asterisco en el badge "dato: real\*"). **No debe presentarse como dato real** sin reemplazar `MONTHLY_REFERENCE_TONS` por la muestra real de Odatis y poner `REFERENCE_IS_PLACEHOLDER = false`.
+**Unidades, con honestidad:** el satélite mide **área de sargazo detectada (km²)**, no toneladas. El panel muestra el **área real** como métrica principal y una **conversión a toneladas estimada y claramente etiquetada** (≈140 t/km² detectado, un supuesto de cobertura sub-píxel × densidad de manto húmedo, no una medición). El pico real observado es **julio-agosto** (el diseño original asumía junio-julio).
 
-La **Capa 2 (proyección)** escala la serie de referencia por el factor de año récord 2026 (+15%, estimación propia consistente con el ajuste por año récord del módulo de estacionalidad).
+La **Capa 2 (proyección)** escala la serie real por el factor de año récord 2026 (+15%, estimación propia consistente con el ajuste por año récord del módulo de estacionalidad).
 
 ## Lo que falta
 
-- Descargar y convertir la muestra real de Odatis para reemplazar el placeholder de Track 6 (pipeline offline NetCDF → JSON ligero).
+- Ampliar la muestra de Odatis (más días/año) si se quiere una climatología aún más suave; el pipeline (`scripts/extract_odatis.py`) ya es reproducible.
 - Optimización de bundle (code-splitting de Recharts) antes del despliegue final si el tiempo alcanza.
 
 ## Nota de rendimiento

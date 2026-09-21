@@ -1,47 +1,53 @@
-// Dataset de referencia para el módulo de monitoreo (Track 6), Capa 1.
+// Dataset de monitoreo (Track 6), Capa 1 — MUESTRA REAL de Odatis (ya no placeholder).
 //
-// ⚠️ PLACEHOLDER — ESTO NO ES DATO REAL. Es una serie sintética de marcador de
-// posición, calibrada al patrón estacional ya conocido del sargazo pelágico en el
-// Caribe mexicano (temporada marzo-octubre, pico junio-julio; ver SEASONALITY_CONSTANTS
-// en constants.ts). Debe reemplazarse por la muestra real, descargada offline del
-// dataset diario de detección satelital de Météo-France/CNES vía Odatis
-// (DOI 10.12770/1eb82d09-77ed-4f63-9f03-2c3516a9713d, formato NetCDF), convertida a
-// esta misma forma JSON/TS ligera para la región del Caribe mexicano.
+// Fuente: producto "Daily composite of Sargassum detection derived from OLCI observations"
+// (MF-L3S-Sargassum-AFAI-OLCI), Meteo-France/CNRM, distribuido por Ifremer/CERSAT via Odatis.
+// DOI 10.12770/1eb82d09-77ed-4f63-9f03-2c3516a9713d. Acceso HTTPS abierto:
+// https://data-cersat.ifremer.fr/data/sargassum/l3s/mf-l3s-sargassum-afai-olci/
 //
-// La amplitud está anclada a cifras públicas de 2025 en Quintana Roo (~76,000 t
-// removidas en el año, con picos de 13,000+ t en eventos de temporada alta, según
-// cobertura local citada en PYRO_CELL.md). Es una calibración de orden de magnitud,
-// NO una medición. Nunca presentar como dato real sin la etiqueta REFERENCE_SOURCE_LABEL.
+// Metodo de extraccion (script offline scripts/extract_odatis.py, 2026-09-20): para la caja del Caribe
+// mexicano (lat 17.8-21.6, lon -88.0--86.0) se contaron los pixeles con
+// status_of_detections == 0 (= sargazo detectado) en la malla de 0.0032 grados, se
+// convirtieron a km2 con el area real de cada pixel (corregida por cos(lat)), y se
+// promediaron los dias [10, 20] de cada mes en los anios 2023, 2024, 2025 (hasta 6 muestras/mes).
+//
+// areaKm2 es MEDICION satelital real (superficie de sargazo detectada), limitada por
+// nubosidad (los huecos sin observacion se excluyen, no se cuentan como cero). coveragePct
+// es la fraccion de mar observado con sargazo (robusta a nubosidad). El pico observado real
+// es julio-agosto (no junio-julio como asumia el diseno original).
 
-/** Bandera que fuerza el etiquetado honesto en la UI mientras la serie sea sintética.
- *  Poner en `false` únicamente cuando MONTHLY_REFERENCE_TONS provenga de la muestra
- *  real de Odatis ya convertida. */
-export const REFERENCE_IS_PLACEHOLDER = true;
+/** Ya NO es placeholder: la serie proviene de la muestra real de Odatis. */
+export const REFERENCE_IS_PLACEHOLDER = false;
 
 export const REFERENCE_SOURCE_LABEL =
-  "Datos de referencia (placeholder), pendiente de reemplazar con muestra real de Odatis " +
-  "(DOI 10.12770/1eb82d09-77ed-4f63-9f03-2c3516a9713d)";
+  "Odatis / Meteo-France - MF-L3S-Sargassum-AFAI-OLCI (DOI 10.12770/1eb82d09) - " +
+  "area de sargazo detectada por satelite, Caribe mexicano, media de dias muestreados 2023-2025";
 
-export interface MonthlyTonnage {
-  month: string; // clave de 3 letras en inglés, consistente con SEASONALITY_CONSTANTS
-  tons: number;
+export interface MonthlyDetection {
+  month: string; // clave de 3 letras en ingles, consistente con SEASONALITY_CONSTANTS
+  areaKm2: number; // superficie de sargazo detectada (medicion satelital real)
+  coveragePct: number; // % de mar observado con sargazo (robusto a nubosidad)
 }
 
-// Total anual de referencia (placeholder): ~76,000 t, ancla de Quintana Roo 2025.
-// Reparto mensual según los pesos estacionales conocidos (suman 1.0), pico jun-jul.
-export const REFERENCE_ANNUAL_TOTAL_TONS = 76_000;
+// Factor de conversion de AREA DETECTADA a biomasa humeda estimada. ESTIMACION PROPIA,
+// NO una medicion: un pixel "detectado" no esta cubierto al 100% por sargazo (los mantos
+// ocupan una fraccion sub-pixel). Cadena de supuestos: cobertura sub-pixel ~4% x densidad
+// de manto humedo ~3.5 kg/m2 -> 0.04 x 3.5 kg/m2 x 1e6 m2/km2 / 1000 = 140 t/km2. Ajustable;
+// la incertidumbre es de al menos un orden de magnitud. Densidad de manto: literatura de
+// biomasa de sargazo (p. ej. Wang et al. 2019, Science, DOI 10.1126/science.aaw7912).
+export const WET_TONNES_PER_KM2_DETECTED = 140;
 
-export const MONTHLY_REFERENCE_TONS: MonthlyTonnage[] = [
-  { month: "Jan", tons: 760 }, // 0.01
-  { month: "Feb", tons: 760 }, // 0.01
-  { month: "Mar", tons: 3040 }, // 0.04
-  { month: "Apr", tons: 6840 }, // 0.09
-  { month: "May", tons: 10640 }, // 0.14
-  { month: "Jun", tons: 14440 }, // 0.19  ← pico
-  { month: "Jul", tons: 13680 }, // 0.18  ← pico
-  { month: "Aug", tons: 9880 }, // 0.13
-  { month: "Sep", tons: 7600 }, // 0.10
-  { month: "Oct", tons: 5320 }, // 0.07
-  { month: "Nov", tons: 2280 }, // 0.03
-  { month: "Dec", tons: 760 }, // 0.01
+export const MONTHLY_REFERENCE_DETECTION: MonthlyDetection[] = [
+  { month: "Jan", areaKm2: 25.3, coveragePct: 0.056 },
+  { month: "Feb", areaKm2: 164.6, coveragePct: 0.402 },
+  { month: "Mar", areaKm2: 371.3, coveragePct: 0.789 },
+  { month: "Apr", areaKm2: 501.6, coveragePct: 0.988 },
+  { month: "May", areaKm2: 648.1, coveragePct: 1.284 },
+  { month: "Jun", areaKm2: 493.3, coveragePct: 0.986 },
+  { month: "Jul", areaKm2: 1448.7, coveragePct: 2.954 },
+  { month: "Aug", areaKm2: 1744.4, coveragePct: 4.207 },
+  { month: "Sep", areaKm2: 139.0, coveragePct: 1.166 },
+  { month: "Oct", areaKm2: 19.6, coveragePct: 0.063 },
+  { month: "Nov", areaKm2: 13.0, coveragePct: 0.039 },
+  { month: "Dec", areaKm2: 13.8, coveragePct: 0.034 },
 ];

@@ -12,6 +12,7 @@ import {
 } from "recharts";
 import {
   ALL_MONTHS,
+  areaToEstimatedTons,
   computeMonitoring,
   MONTH_LABELS,
   monitoringMonthlySeries,
@@ -30,18 +31,24 @@ const ALERT_META: Record<AlertLevel, { label: string; accent: "surplus" | "energ
   rojo: { label: "Rojo", accent: "deficit", hex: "#e0654a" },
 };
 
+function fmtTons(t: number): string {
+  if (t >= 1_000_000) return `~${(t / 1_000_000).toFixed(2)} Mt`;
+  if (t >= 1_000) return `~${(t / 1_000).toFixed(0)} kt`;
+  return `~${t.toFixed(0)} t`;
+}
+
 export function MonitoringPanel() {
-  const [source, setSource] = useState<MonitoringDataSource>("seasonal_projection");
+  const [source, setSource] = useState<MonitoringDataSource>("odatis_offline_snapshot");
   const [month, setMonth] = useState<string>(CURRENT_MONTH);
-  const [thresholdTons, setThresholdTons] = useState<number>(10_000);
+  const [thresholdKm2, setThresholdKm2] = useState<number>(800);
 
   const series = useMemo(() => monitoringMonthlySeries(source), [source]);
   const output = useMemo(
-    () => computeMonitoring({ historicalBloomDataSource: source, alertThresholdTons: thresholdTons }, month),
-    [source, month, thresholdTons]
+    () => computeMonitoring({ historicalBloomDataSource: source, alertThresholdAreaKm2: thresholdKm2 }, month),
+    [source, month, thresholdKm2]
   );
 
-  const chartData = series.map((m) => ({ mes: MONTH_LABELS[m.month].slice(0, 3), tons: m.tons, key: m.month }));
+  const chartData = series.map((m) => ({ mes: MONTH_LABELS[m.month].slice(0, 3), km2: m.areaKm2, key: m.month }));
   const selected = chartData.find((d) => d.key === month);
   const alert = ALERT_META[output.alertLevel];
   const lineColor = output.dataSourceUsed === "real" ? "#4fb8ae" : "#e3a03c";
@@ -53,7 +60,7 @@ export function MonitoringPanel() {
         <SourceBadge source={output.dataSourceUsed} />
       </div>
       <p className="text-xs text-text-muted mb-4">
-        Arquitectura híbrida de dos capas: histórico (Odatis) + proyección estacional
+        Arquitectura híbrida de dos capas: histórico real (Odatis) + proyección estacional
       </p>
 
       {source === "odatis_offline_snapshot" && REFERENCE_IS_PLACEHOLDER && (
@@ -67,12 +74,12 @@ export function MonitoringPanel() {
           label="Nivel de alerta"
           value={alert.label}
           accent={alert.accent}
-          sublabel={`umbral ${(thresholdTons / 1000).toFixed(0)} kt/mes`}
+          sublabel={`umbral ${thresholdKm2} km²/mes`}
         />
         <StatCard
-          label="Arribazón del mes"
-          value={`${(output.currentProjectionTons / 1000).toFixed(1)} kt`}
-          sublabel={MONTH_LABELS[month]}
+          label="Área detectada (mes)"
+          value={`${output.currentAreaKm2.toFixed(0)} km²`}
+          sublabel={`${MONTH_LABELS[month]} · ${fmtTons(output.currentEstimatedTons)} est.`}
         />
         <StatCard
           label="Días al umbral"
@@ -90,8 +97,8 @@ export function MonitoringPanel() {
             onChange={(e) => setSource(e.target.value as MonitoringDataSource)}
             className="bg-bg-raised border border-border rounded px-2 py-1.5 text-sm"
           >
+            <option value="odatis_offline_snapshot">Histórico real (Odatis)</option>
             <option value="seasonal_projection">Proyección estacional</option>
-            <option value="odatis_offline_snapshot">Histórico (Odatis)</option>
           </select>
         </div>
         <div>
@@ -108,15 +115,15 @@ export function MonitoringPanel() {
         </div>
         <div className="flex-1 min-w-40">
           <label className="text-xs text-text-secondary block mb-1">
-            Umbral de alerta: <span className="text-energy font-data">{(thresholdTons / 1000).toFixed(1)} kt/mes</span>
+            Umbral de alerta: <span className="text-energy font-data">{thresholdKm2} km²/mes</span>
           </label>
           <input
             type="range"
-            min={2000}
-            max={18000}
-            step={500}
-            value={thresholdTons}
-            onChange={(e) => setThresholdTons(Number(e.target.value))}
+            min={100}
+            max={2000}
+            step={50}
+            value={thresholdKm2}
+            onChange={(e) => setThresholdKm2(Number(e.target.value))}
             className="w-full accent-energy"
           />
         </div>
@@ -129,25 +136,28 @@ export function MonitoringPanel() {
             <XAxis dataKey="mes" tick={{ fontSize: 10, fill: "#9fb0ba" }} interval={0} />
             <YAxis
               tick={{ fontSize: 10, fill: "#9fb0ba" }}
-              width={40}
-              tickFormatter={(v) => `${(Number(v) / 1000).toFixed(0)}k`}
+              width={44}
+              tickFormatter={(v) => `${Number(v).toFixed(0)}`}
+              label={{ value: "km²", angle: -90, position: "insideLeft", fill: "#64747e", fontSize: 10 }}
             />
             <Tooltip
               contentStyle={{ background: "#1a2c3a", border: "1px solid #26404f", fontSize: 12 }}
               labelStyle={{ color: "#f2eee3" }}
-              formatter={(v) => [`${Number(v).toLocaleString("es-MX")} t`, "Arribazón"]}
+              formatter={(v) => [`${Number(v).toFixed(0)} km²  (${fmtTons(areaToEstimatedTons(Number(v)))} est.)`, "Área detectada"]}
             />
-            <ReferenceLine y={thresholdTons} stroke="#e0654a" strokeDasharray="4 4" strokeWidth={1.5} />
-            <Line type="monotone" dataKey="tons" stroke={lineColor} strokeWidth={2} dot={false} />
-            {selected && <ReferenceDot x={selected.mes} y={selected.tons} r={5} fill={alert.hex} stroke="#0b1620" strokeWidth={2} />}
+            <ReferenceLine y={thresholdKm2} stroke="#e0654a" strokeDasharray="4 4" strokeWidth={1.5} />
+            <Line type="monotone" dataKey="km2" stroke={lineColor} strokeWidth={2} dot={false} />
+            {selected && <ReferenceDot x={selected.mes} y={selected.km2} r={5} fill={alert.hex} stroke="#0b1620" strokeWidth={2} />}
           </LineChart>
         </ResponsiveContainer>
       </div>
 
       <p className="text-xs text-text-muted mt-3 leading-relaxed">
-        La proyección estacional escala la serie de referencia por el factor de año récord 2026 (+15%,
-        estimación propia consistente con el ajuste por año récord del módulo de estacionalidad). Ninguna
-        capa depende de una llamada de red en vivo.
+        Área: <span className="text-text-secondary">medición satelital real</span> de Odatis / Météo-France
+        (MF-L3S-Sargassum-AFAI-OLCI, DOI 10.12770/1eb82d09), media de días muestreados 2023–2025 para el Caribe
+        mexicano; pico real observado en julio-agosto. Toneladas: conversión <span className="text-energy">estimada</span> (≈140 t/km²
+        detectado, supuesto sub-píxel), no una medición. La proyección escala el histórico real por el factor de
+        año récord 2026 (+15%). Ninguna capa depende de una llamada de red en vivo.
       </p>
     </div>
   );
@@ -161,7 +171,7 @@ function SourceBadge({ source }: { source: "real" | "proyectado" }) {
         isReal ? "text-water border-water-dim bg-water-dim/20" : "text-energy border-energy-dim bg-energy-dim/20"
       }`}
     >
-      {isReal ? "dato: real*" : "dato: proyectado"}
+      {isReal ? "dato: real (satélite)" : "dato: proyectado"}
     </span>
   );
 }
