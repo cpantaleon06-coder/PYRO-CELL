@@ -1,49 +1,54 @@
 # PYRO-CELL
 
+**A digital simulation of a coastal circular-economy pipeline that turns Sargassum seaweed into biochar, energy, and clean water, while protecting the aquatic ecosystems the OneAquaHealth mission exists to defend.**
+
+![PYRO-CELL dashboard](./dashboard-screenshot.png)
+
 ## Inspiration
 
-Sargassum influxes have severely impacted Caribbean ecosystems and coastal economies. Traditional disposal involves landfilling or dumping, which creates secondary pollution and wastes a high-potential biomass source. Inspired by circular economy principles, our team set out to model and visualize a continuous, autothermal valorization pipeline. By transforming raw, wet sargassum into high-value biochar, bio-oil, and syngas, we can turn an environmental crisis into an economically viable and energy-positive industry.
+Sargassum blooms are not just a beach nuisance. As the mats decompose on the shore, they drive hypoxia and eutrophication in coastal waters, release hydrogen sulfide, and can leach arsenic and heavy metals into the water column, the same water OneAquaHealth's "Healthy Waters, Healthy Ecosystems, Healthy Communities" mission is built to protect. 2026 is already a near-record bloom year across the Atlantic and Caribbean.
+
+We started this project asking a narrower question, whether a pyrolysis pipeline for Sargassum could be energy self-sufficient. It became a broader one once we realized the real judge-facing story is not energy for its own sake: it is that removing the biomass before it decomposes is itself a water-protection intervention, and the energy design is what makes that intervention operationally sustainable rather than a one-off cleanup.
 
 ## What it does
 
-We designed a client-side simulation dashboard split into 5 core modules, backed by mathematical and physical balances verified against peer-reviewed research (Milledge et al. 2015 and Cheatham et al. 2026).
+PYRO-CELL is a client-side simulation dashboard, not a physical prototype, that models a full valorization pipeline from wet, freshly-harvested Sargassum to biochar, syngas, bio-oil, and a candidate water-treatment product, with every number traceable to a cited source or explicitly marked as our own estimate.
 
-```
-[ 1. Sea Harvesting ] → [ 2. Mechanical Centrifuge ] → [ 3. Honeycomb Solar Dryer ]
-   (82% MOISTURE)            (60% MOISTURE)                  (20% MOISTURE)
-```
+**Five modules, all live in the deployed app:**
+
+- **Energy balance**: mass and thermal balance across mechanical dewatering (centrifuge), passive solar drying (greenhouse + evacuated-tube thermal collectors), and pyrolysis. Reactor temperature is a single shared slider (400-600°C) that now drives both the energy module and the economic module together, closing a disconnect we found and fixed mid-build.
+- **Economic model**: NPV, breakeven price, and a sensitivity slider on Sargassum acquisition cost, interpolated from the three scenarios published in Cheatham et al. (2026), not a black box.
+- **Seasonality**: a month and reserve-buffer simulator implementing our own hybrid supply strategy (partial buffer, reduced-rate operation in the scarcity core), since Sargassum arrival is seasonal and the original design assumed a constant year-round feed.
+- **Resilience monitoring (Track 6)**: a two-layer hybrid, a real offline snapshot of Météo-France/CNRM satellite Sargassum detection data (Odatis, DOI 10.12770/1eb82d09) calibrated against a seasonal projection layer. No live network dependency, so the demo can never fail from an external outage, and the UI always labels which layer produced the number on screen.
+- **AI-assisted validation (Track 3)**: a Vercel Edge Function that evaluates simulated citizen observations of Sargassum sightings using Groq (an open-weight model, since the team does not have Claude API access), with structured-output reasoning, deterministic pre-checks, and a human-in-the-loop review flag whenever confidence is low or an anomaly is detected. This is explainable AI in the literal sense the track asks for, not a black-box classifier.
 
 ## How we built it
 
-We designed and simulated the entire processing pipeline using custom MATLAB modeling tools. The system breaks down the transformation into four interconnected stages:
+Frontend is React + Vite + TypeScript + Tailwind v4 + Recharts, deployed to Vercel. All physical and economic constants live in one typed module (`src/lib/constants.ts`), each with a source comment, so the UI can never silently drift from the research behind it.
 
-- **Sea Harvesting:** Collecting raw sargassum with high natural moisture content directly from coastal waters.
-- **Mechanical Centrifuge Dewatering:** Using centrifugal force to rapidly extract free seawater from the biomass without relying on thermal energy.
-- **Honeycomb Solar Mesh Drying:** Spreading the partially dewatered algae onto perforated mesh beds inside a passive greenhouse structure to evaporate residual water using solar radiation.
-- **Pyrolysis Furnace Reactor:** Feeding the pre-conditioned, dry sargassum into a continuous tubular reactor to thermally decompose it into carbonized biochar and energy-rich gases.
-
-We built an interactive, two-dimensional thermal simulation to model the heat distribution inside the furnace reactor, as well as an animated visualization that tracks biomass particles as they transform from raw green algae into carbonized biochar.
+Independent of the web app, we modeled the physical process and plant layout in MATLAB: a mass and energy balance script (`sargazo.m`, `constantes.mlx`) and a 3D plant layout (`plano.m`) covering intake and centrifuging, the solar drying stage, the pyrolysis reactor with a CSP/syngas hybrid heating architecture, and a biochar filter bank for water treatment, including a thermal regeneration loop back into the reactor for spent filter media.
 
 ## Challenges we ran into
 
-- **Balancing Thermal Energy Loads:** Removing high amounts of moisture using heat alone requires massive energy inputs. Designing a pipeline that relies on mechanical dewatering and solar drying prior to thermal processing was crucial to keep the system energy-positive.
-- **Continuous Flow Modeling:** Simulating the continuous motion of biomass particles through changing thermal gradients required careful tracking of material state transitions inside MATLAB.
-- **Recirculation Integration:** Modeling the autothermal loop—where syngas generated during pyrolysis is recirculated to power the furnace burners—required balancing energy yields with reactor heat demand.
+- **A unit mismatch that inflated our own syngas energy by roughly 6x.** An early MATLAB script multiplied a per-kg-of-syngas HHV directly by total dry mass without applying the syngas mass yield first. We caught it by recomputing independently and comparing against our own already-verified figures.
+- **A silent architectural gap between the energy and economic modules.** The economic model let a user slide reactor temperature from 400 to 800°C, but the energy module was hard-coded to Milledge et al.'s 400°C figures regardless. We only found this because a MATLAB plant sketch forced a single concrete biochar-yield number, which made the mismatch impossible to ignore. Fixed by making pyrolysis heat a function of temperature and reconciling both modules to a shared 400-600°C design range.
+- **A moisture-basis error that had been silently propagating for days.** We had been modeling the process at 80% initial moisture; the actual figure in Cheatham et al. (2026), and in our own team's MATLAB constants file, is 82%. That two-point difference cascades through every downstream number (water removed, energy required, collector area, buffer size). We traced and corrected it everywhere once it surfaced.
+- **A plant sketch that would not even parse.** An early version of `plano.m` had an unclosed `for` loop that made the script fail before drawing anything, plus a cylinder with its height and radius axes accidentally swapped, rendering the pyrolysis furnace as a flattened disc instead of a vertical reactor. We installed Octave in our build environment specifically to execute and visually verify the fix rather than trust a code read.
+- **Realizing our own arsenic warning cuts both ways.** We had flagged that sargassum bioaccumulates arsenic, a risk for biochar used in soil or construction. Researching biochar as a water filter surfaced literature showing sargassum-derived biochar (particularly iron-oxide-modified) can adsorb arsenic from water, but no study we found tests whether *our* biochar's own bioaccumulated arsenic leaches back out under filtration conditions. We are treating that as an open safety question requiring a real leaching test, not an assumption either way.
 
-## Accomplishments that we're proud of
+## Accomplishments we're proud of
 
-- **Integrated 2D Thermal Visualization:** Successfully rendered a real-time thermal map of the reactor interior alongside an animated particle flow representing biomass conversion.
-- **Complete Pipeline Simulation:** Built a modular simulation covering every stage from wet sea harvesting to final biochar collection.
-- **Autothermal Energy Balance:** Demonstrated that energy recovered from pyrolysis gases can sustain reactor heating requirements, making the core conversion step self-sufficient.
+- A real satellite-data pipeline (not a placeholder): our extraction script pulled genuine daily Sargassum detection data from the Ifremer/CERSAT archive for the Mexican Caribbean box, and in doing so found that the real observed bloom peak is July-August, not June-July as the secondary sources we started with assumed.
+- A working, structured-output AI validation endpoint with a real fallback chain (structured JSON, then free-text parsing, then a safe human-review default), not a demo that only works on the happy path.
+- A fully reconciled physical and economic model, three separate design decisions (moisture basis, greenhouse efficiency, reactor temperature) made explicitly and propagated consistently through every document and every constant in the codebase, with the disagreements between our own sources documented rather than hidden.
 
 ## What we learned
 
-- **Pre-treatment is Everything:** Mechanical and solar dewatering steps are far more critical to overall system efficiency than the reactor itself, as removing water passively saves vast amounts of operational energy.
-- **Spatial Temperature Gradients Matter:** The radial and axial temperature profiles inside a tubular reactor directly influence how uniformly biomass transforms into high-quality biochar.
-- **Process Coupling:** Linking separate physical steps into a single simulation model reveals bottlenecks that wouldn't be visible when studying individual components in isolation.
+Pre-treatment dominates the energy budget far more than the reactor itself: mechanical dewatering and passive solar drying determine whether the whole pipeline is energy-positive, long before pyrolysis chemistry matters. And research rigor has a compounding return: nearly every "small" correction in this build (a unit error, a moisture basis, a temperature mismatch) was only caught because an earlier verification habit made the next inconsistency visible.
 
 ## What's next for PYRO-CELL
 
-- **Hardware Prototyping:** Transition from MATLAB visual simulations to building a physical scale model of the honeycomb solar bed and continuous rotary furnace.
-- **Automated Sensor Integration:** Incorporate real-time temperature and moisture sensor feeds into the control loop to dynamically adjust conveyor speed inside the furnace.
-- **Biochar Application Testing:** Analyze the structural properties of the resulting biochar for use in water filtration systems and sustainable concrete additives.
+- A real leaching test on our own biochar before treating the water-filter application as validated, not just adsorption-capable.
+- Actual reactor engineering sizing (volume, residence time) for the throughput we model; our current 3D plant sketch uses illustrative dimensions, not a calculated vessel.
+- Sizing the CSP field and off-gas treatment for thermal regeneration of spent filter biochar, since some adsorbed metals can volatilize at regeneration temperatures.
+- Revenue-model update: current economics use a $100/t biochar baseline for comparability with Cheatham et al.; the 2026 market (certified biochar plus carbon credits) trades at $400-1,200/t physical and $150-400/tCO2e, pending the characterization work certification requires.
