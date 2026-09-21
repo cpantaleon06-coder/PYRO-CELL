@@ -61,7 +61,7 @@ export function ValidationPanel() {
     <div className="bg-bg-panel border border-border rounded-lg p-5">
       <p className="font-display font-semibold text-base mb-1">Validación con IA (Track 3)</p>
       <p className="text-xs text-text-muted mb-4">
-        Groq · llama-3.3-70b · flujo human-in-the-loop con explicabilidad
+        Groq · gpt-oss-120b · flujo human-in-the-loop con explicabilidad
       </p>
 
       <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">

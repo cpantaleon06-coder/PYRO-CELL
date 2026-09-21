@@ -1,8 +1,8 @@
 // Función Edge de Vercel — Validación con IA de observaciones ciudadanas (Track 3).
 //
 // Proveedor de LLM: Groq (gratis, compatible con la API de OpenAI), modelo
-// llama-3.3-70b-versatile, vía el Vercel AI SDK con el proveedor OpenAI-compatible
-// apuntando a https://api.groq.com/openai/v1. Requiere la variable de entorno
+// openai/gpt-oss-120b (ver nota en GROQ_MODEL), vía el Vercel AI SDK con el proveedor
+// OpenAI-compatible apuntando a https://api.groq.com/openai/v1. Requiere la variable de entorno
 // GROQ_API_KEY (configurar en el dashboard de Vercel; ver .env.example).
 //
 // Estrategia de salida estructurada: se intenta primero `generateObject` (JSON mode /
