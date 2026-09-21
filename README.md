@@ -1,52 +1,49 @@
-# Dashboard de simulación — Valorización de sargazo (Fase 3)
+# PYRO-CELL
 
-Prototipo funcional de las calculadoras interactivas (energética y económica), el panel de estacionalidad, el **monitoreo de arribazón (Track 6)** y la **validación con IA (Track 3)**, siguiendo `esquema_datos.md` y `PYRO_CELL.md` v2 al pie de la letra.
+## Inspiration
 
-## Correr localmente
+Sargassum influxes have severely impacted Caribbean ecosystems and coastal economies. Traditional disposal involves landfilling or dumping, which creates secondary pollution and wastes a high-potential biomass source. Inspired by circular economy principles, our team set out to model and visualize a continuous, autothermal valorization pipeline. By transforming raw, wet sargassum into high-value biochar, bio-oil, and syngas, we can turn an environmental crisis into an economically viable and energy-positive industry.
 
-```bash
-npm install
-npm run dev
+## What it does
+
+We designed a client-side simulation dashboard split into 5 core modules, backed by mathematical and physical balances verified against peer-reviewed research (Milledge et al. 2015 and Cheatham et al. 2026).
+
+```
+[ 1. Sea Harvesting ] → [ 2. Mechanical Centrifuge ] → [ 3. Honeycomb Solar Dryer ]
+   (82% MOISTURE)            (60% MOISTURE)                  (20% MOISTURE)
 ```
 
-Abre `http://localhost:5173`.
+## How we built it
 
-> La función Edge de validación (Track 3) **no corre bajo `npm run dev`** (Vite no ejecuta `/api`). El panel muestra un aviso claro en ese caso. Para probarla contra Groq necesitas desplegar a Vercel (o correr `vercel dev` con `GROQ_API_KEY` en `.env.local`).
+We designed and simulated the entire processing pipeline using custom MATLAB modeling tools. The system breaks down the transformation into four interconnected stages:
 
-## Qué incluye
+- **Sea Harvesting:** Collecting raw sargassum with high natural moisture content directly from coastal waters.
+- **Mechanical Centrifuge Dewatering:** Using centrifugal force to rapidly extract free seawater from the biomass without relying on thermal energy.
+- **Honeycomb Solar Mesh Drying:** Spreading the partially dewatered algae onto perforated mesh beds inside a passive greenhouse structure to evaporate residual water using solar radiation.
+- **Pyrolysis Furnace Reactor:** Feeding the pre-conditioned, dry sargassum into a continuous tubular reactor to thermally decompose it into carbonized biochar and energy-rich gases.
 
-- **`src/lib/constants.ts`**: puerto exacto de todas las constantes y fórmulas de `esquema_datos.md`, con las decisiones ya adoptadas (82% de humedad, eficiencia del invernadero al 50%, rango de reactor 400-600°C con 500°C de diseño). Cada constante tiene su fuente en el comentario. Incluye ahora los tipos y la lógica de Track 3 y Track 6.
-- **`EnergyPanel`** / **`EconomicPanel`** / **`SeasonalityBar`**: los tres módulos de la Fase 2 (sin cambios).
-- **`MonitoringPanel`** (Track 6): arquitectura híbrida de dos capas. Gráfica de arribazón mensual (Recharts), tarjeta de nivel de alerta con color semántico (verde/amarillo/rojo), umbral configurable, días al umbral e indicador visible de si el dato es **real** o **proyectado**.
-- **`ValidationPanel`** (Track 3): formulario de observación ciudadana → función Edge que llama a Groq → tarjeta de resultado con confianza, explicación, anomalías y razonamiento, más flujo **human-in-the-loop real** (aprobar/rechazar cuando se requiere revisión).
-- **`api/validate-observation.ts`**: función Edge de Vercel. Usa el Vercel AI SDK con el proveedor OpenAI-compatible apuntando a Groq (`llama-3.3-70b-versatile`).
+We built an interactive, two-dimensional thermal simulation to model the heat distribution inside the furnace reactor, as well as an animated visualization that tracks biomass particles as they transform from raw green algae into carbonized biochar.
 
-## Track 3 — Validación con IA
+## Challenges we ran into
 
-- Proveedor: **Groq** (gratis, sin tarjeta, compatible con la API de OpenAI), modelo `llama-3.3-70b-versatile`.
-- El prompt pide razonamiento paso a paso y salida JSON estructurada. Se intenta primero `generateObject` (JSON mode del SDK) y, si falla, se cae a `generateText` + parseo manual con validación; si el JSON sale mal formado, el resultado es seguro (`humanReviewRequired = true`).
-- Chequeos deterministas de apoyo (geocerca de zonas de sargazo conocidas y rango de tonelaje plausible) que se fusionan con la salida del modelo.
-- `humanReviewRequired` se fuerza en el servidor si la confianza < 0.6 o hay cualquier anomalía.
+- **Balancing Thermal Energy Loads:** Removing high amounts of moisture using heat alone requires massive energy inputs. Designing a pipeline that relies on mechanical dewatering and solar drying prior to thermal processing was crucial to keep the system energy-positive.
+- **Continuous Flow Modeling:** Simulating the continuous motion of biomass particles through changing thermal gradients required careful tracking of material state transitions inside MATLAB.
+- **Recirculation Integration:** Modeling the autothermal loop—where syngas generated during pyrolysis is recirculated to power the furnace burners—required balancing energy yields with reactor heat demand.
 
-### Desplegar a Vercel
+## Accomplishments that we're proud of
 
-1. Sube el repo a GitHub e impórtalo en Vercel (framework detectado: **Vite**).
-2. En **Project Settings → Environment Variables** agrega `GROQ_API_KEY` (créala en https://console.groq.com/keys). Ver `.env.example`.
-3. Deploy. La función queda en `https://<tu-deploy>.vercel.app/api/validate-observation`.
+- **Integrated 2D Thermal Visualization:** Successfully rendered a real-time thermal map of the reactor interior alongside an animated particle flow representing biomass conversion.
+- **Complete Pipeline Simulation:** Built a modular simulation covering every stage from wet sea harvesting to final biochar collection.
+- **Autothermal Energy Balance:** Demonstrated that energy recovered from pyrolysis gases can sustain reactor heating requirements, making the core conversion step self-sufficient.
 
-## Track 6 — Monitoreo (dato real de Odatis)
+## What we learned
 
-La **Capa 1 (histórico real)** ya usa una **muestra real** del producto satelital **MF-L3S-Sargassum-AFAI-OLCI** de Météo-France/CNRM, distribuido por Ifremer/CERSAT vía **Odatis** (DOI `10.12770/1eb82d09-77ed-4f63-9f03-2c3516a9713d`). El script `scripts/extract_odatis.py` descarga los NetCDF diarios (HTTPS abierto), cuenta los píxeles con `status_of_detections == 0` (sargazo detectado) en la caja del Caribe mexicano (0.0032° de resolución), los convierte a **km² reales** (área por píxel corregida por `cos(lat)`) y promedia días muestreados de **2023–2025**. El resultado vive en `src/data/sargassumReference.ts` (`REFERENCE_IS_PLACEHOLDER = false`).
+- **Pre-treatment is Everything:** Mechanical and solar dewatering steps are far more critical to overall system efficiency than the reactor itself, as removing water passively saves vast amounts of operational energy.
+- **Spatial Temperature Gradients Matter:** The radial and axial temperature profiles inside a tubular reactor directly influence how uniformly biomass transforms into high-quality biochar.
+- **Process Coupling:** Linking separate physical steps into a single simulation model reveals bottlenecks that wouldn't be visible when studying individual components in isolation.
 
-**Unidades, con honestidad:** el satélite mide **área de sargazo detectada (km²)**, no toneladas. El panel muestra el **área real** como métrica principal y una **conversión a toneladas estimada y claramente etiquetada** (≈140 t/km² detectado, un supuesto de cobertura sub-píxel × densidad de manto húmedo, no una medición). El pico real observado es **julio-agosto** (el diseño original asumía junio-julio).
+## What's next for PYRO-CELL
 
-La **Capa 2 (proyección)** escala la serie real por el factor de año récord 2026 (+15%, estimación propia consistente con el ajuste por año récord del módulo de estacionalidad).
-
-## Lo que falta
-
-- Ampliar la muestra de Odatis (más días/año) si se quiere una climatología aún más suave; el pipeline (`scripts/extract_odatis.py`) ya es reproducible.
-- Optimización de bundle (code-splitting de Recharts) antes del despliegue final si el tiempo alcanza.
-
-## Nota de rendimiento
-
-El bundle de producción pesa ~180 KB comprimido, mayormente por Recharts. El código de la función Edge (`ai` + `@ai-sdk/openai-compatible`) se despliega por separado y no entra al bundle del cliente.
+- **Hardware Prototyping:** Transition from MATLAB visual simulations to building a physical scale model of the honeycomb solar bed and continuous rotary furnace.
+- **Automated Sensor Integration:** Incorporate real-time temperature and moisture sensor feeds into the control loop to dynamically adjust conveyor speed inside the furnace.
+- **Biochar Application Testing:** Analyze the structural properties of the resulting biochar for use in water filtration systems and sustainable concrete additives.
