@@ -6,7 +6,9 @@
 
 ## Inspiration
 
-Sargassum blooms are not just a beach nuisance. As the mats decompose on the shore, they drive hypoxia and eutrophication in coastal waters, release hydrogen sulfide, and can leach arsenic and heavy metals into the water column, the same water OneAquaHealth's "Healthy Waters, Healthy Ecosystems, Healthy Communities" mission is built to protect. 2026 is already a near-record bloom year across the Atlantic and Caribbean.
+Sargassum blooms are not just a beach nuisance. As the mats decompose on the shore, they drive hypoxia and eutrophication in coastal waters, release hydrogen sulfide, and can leach arsenic and heavy metals into the water column. 2026 is already a near-record bloom year across the Atlantic and Caribbean.
+
+**Why this is a "Healthy Waters, Healthy Ecosystems, Healthy Communities" problem, not just a marine one.** The Yucatán Peninsula, where most of this bloom lands, sits on one of the largest karst aquifer systems on Earth, and it is not two separate water bodies. Coastal cities like Tulum depend almost exclusively on this groundwater for their urban water supply, and the same karst network connects that groundwater to the coast through submarine discharge in one direction and saltwater intrusion in the other, extending several kilometers inland. What decomposes at the shoreline is mechanically linked, through documented hydrogeology, not metaphor, to the freshwater system these communities drink from. Protecting that coastline is protecting the urban freshwater ecosystem OneAquaHealth exists to defend, not a tangentially related cause.
 
 We started this project asking a narrower question, whether a pyrolysis pipeline for Sargassum could be energy self-sufficient. It became a broader one once we realized the real judge-facing story is not energy for its own sake: it is that removing the biomass before it decomposes is itself a water-protection intervention, and the energy design is what makes that intervention operationally sustainable rather than a one-off cleanup.
 
