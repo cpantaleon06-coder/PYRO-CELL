@@ -36,6 +36,19 @@
   #bar{height:100%;width:0;background:var(--accent);transition:width .25s linear}
 
   #controls{position:absolute;top:24px;right:28px;display:flex;gap:8px;pointer-events:auto}
+
+  /* Etiquetas fijas que identifican cada parte del plano (CSS2DRenderer) */
+  .lbl{font-family:"Space Grotesk",sans-serif;font-size:11px;font-weight:600;color:#e9eef5;
+    background:rgba(11,16,22,.84);border:1px solid rgba(255,255,255,.16);border-left:3px solid var(--accent);
+    border-radius:5px;padding:5px 9px;white-space:nowrap;pointer-events:none;
+    box-shadow:0 2px 10px rgba(0,0,0,.45)}
+  .lbl .n{font-family:"IBM Plex Mono",monospace;color:#8fa6ff;margin-right:6px}
+  .lbl small{display:block;font-family:"Poppins",sans-serif;font-weight:400;font-size:10px;
+    color:#9db0c0;margin-top:3px;letter-spacing:.1px}
+  .lbl.compact{font-size:10px;padding:4px 8px}
+  .lbl.compact small{display:none}
+  .lbl.warn{border-left-color:var(--deficit)}
+  .lbl.warn small{color:#f0b3a3}
   button{font-family:"Space Grotesk",sans-serif;font-size:12px;font-weight:600;color:var(--ink);
     background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.18);border-radius:6px;
     padding:8px 14px;cursor:pointer;transition:background .15s}
@@ -56,6 +69,7 @@
 </div>
 
 <div id="controls">
+  <button id="btn-labels">Etiquetas: on</button>
   <button id="play" class="primary">▶ Iniciar recorrido</button>
   <button id="free">Vista libre</button>
 </div>
@@ -86,6 +100,7 @@
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 
 // Coordenadas tomadas de plano.m (X = largo 0-45 m, Y = ancho 0-25 m, Z = altura).
 // Three.js usa Y como vertical, así que mapeamos: three(x, z_plano, y_plano).
@@ -100,6 +115,15 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
 document.getElementById('app').appendChild(renderer.domElement);
+
+// Capa de etiquetas HTML posicionadas en 3D (no se deforman con la perspectiva)
+const labelRenderer = new CSS2DRenderer();
+labelRenderer.setSize(innerWidth, innerHeight);
+labelRenderer.domElement.style.position = 'absolute';
+labelRenderer.domElement.style.top = '0';
+labelRenderer.domElement.style.left = '0';
+labelRenderer.domElement.style.pointerEvents = 'none';
+document.getElementById('app').appendChild(labelRenderer.domElement);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
@@ -233,6 +257,46 @@ const regen = new THREE.Line(
 regen.computeLineDistances();
 scene.add(regen);
 
+// ================= Etiquetas: qué es cada parte del plano =================
+// Numeración idéntica a la leyenda de plano.m. Las cifras son las ya verificadas
+// en PYRO_CELL.md / constants.ts; las salvedades van marcadas en rojo.
+const LABELS = [];
+function label(n, title, sub, x, y, z, warn) {
+  const d = document.createElement('div');
+  d.className = 'lbl' + (warn ? ' warn' : '');
+  const num = document.createElement('span');
+  num.className = 'n'; num.textContent = n;
+  d.appendChild(num);
+  d.appendChild(document.createTextNode(title));
+  const sm = document.createElement('small');
+  sm.textContent = sub;
+  d.appendChild(sm);
+  const o = new CSS2DObject(d);
+  o.position.set(x, z, y); // plano(x,y,z) -> three(x,z,y)
+  scene.add(o);
+  LABELS.push({ obj: o, el: d });
+  return o;
+}
+
+label('1', 'Recepción y centrifugado',
+      'Centrífuga decantadora · 82% → 60% humedad · 825 kg agua/día', 4, 7, 4.4);
+label('2', 'Arreglo fotovoltaico',
+      '8.3 kWp · alimenta la centrífuga (45.83 kWh/día)', 4, 18.7, 3.4);
+label('3', 'Invernadero solar pasivo',
+      '35 m² · 60% → 20% humedad · 192.5 kWh/día', 12.5, 5.5, 5.0);
+label('4', 'Colectores térmicos',
+      '89.4 m² tubos evacuados · cubren el déficit de 295 kWh/día', 15, 16.5, 3.4);
+label('5', 'Reactor de pirólisis',
+      '400-600 °C (diseño 500 °C) · 337.5 kg → 161.3 kg biochar', 25, 6, 9.4);
+label('6', 'Campo CSP',
+      'Calor solar concentrado · ilustrativo, sin dimensionar', 28, 19.5, 2.6, true);
+label('7', 'Banco de filtros de biochar',
+      'Tratamiento de agua · requiere prueba de lixiviación', 40, 15.5, 6.6, true);
+label('8', 'Bodega de colchón sellada',
+      '16.5 t · 82.7 m³ · 49 días de reserva', 39, 22.25, 4.4);
+label('–', 'Regeneración térmica',
+      '600-800 °C · el filtro saturado vuelve al reactor', 33, 1.0, 5.2);
+
 // ---- Partículas de flujo de material por la ruta del proceso ----
 const routePts = [P(4, 7, 3.2), P(12.5, 5.5, 3.8), P(15, 16.5, 2.4), P(25, 6, 8.4), P(38, 8, 4.2)];
 const route = new THREE.CatmullRomCurve3(routePts);
@@ -333,6 +397,13 @@ function startTour() {
 }
 
 document.getElementById('play').onclick = () => { barEl.style.width = '0%'; startTour(); };
+let labelsOn = true;
+document.getElementById('btn-labels').onclick = (ev) => {
+  labelsOn = !labelsOn;
+  labelRenderer.domElement.style.display = labelsOn ? '' : 'none';
+  ev.currentTarget.textContent = labelsOn ? 'Etiquetas: on' : 'Etiquetas: off';
+};
+
 document.getElementById('free').onclick = () => {
   tour = null; controls.enabled = true; capEl.classList.remove('show');
   document.getElementById('play').textContent = '▶ Iniciar recorrido';
@@ -349,8 +420,12 @@ function animate() {
   });
   reactor.material.emissive = new THREE.Color(0x4a1206);
   reactor.material.emissiveIntensity = 0.5 + Math.sin(clock.elapsedTime * 2) * 0.22;
+  LABELS.forEach((L) => {
+    L.el.classList.toggle('compact', camera.position.distanceTo(L.obj.position) > 34);
+  });
   if (tour) tour(); else controls.update();
   renderer.render(scene, camera);
+  labelRenderer.render(scene, camera);
 }
 animate();
 
@@ -358,6 +433,7 @@ addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
+  labelRenderer.setSize(innerWidth, innerHeight);
 });
 </script>
 </body>
