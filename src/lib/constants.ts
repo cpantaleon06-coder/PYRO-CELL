@@ -70,6 +70,16 @@ export const SEASONALITY_CONSTANTS = {
   bufferMoistureTargetPct: 10, // base seca, umbral de estabilidad (isotermas de sorción)
 } as const;
 
+// ---------- Planta de referencia ----------
+// Punto de operación único que comparten los módulos energético y económico, para que
+// no puedan derivar entre sí (antes 1500 y 0.82 estaban como literales en EnergyPanel).
+export const PLANT_REFERENCE = {
+  freshSargassumKgPerDay: 1500, // PYRO_CELL.md, balance de materia
+  initialMoisturePct: 0.82, // Cheatham et al. 2026 (NO 80%, ver corrección del balance)
+  targetMoisturePctStage1: 0.6, // salida de centrifugado
+  targetMoisturePctStage2: 0.2, // salida de invernadero
+} as const;
+
 // ---------- Balance de masa ----------
 
 export interface MassBalance {

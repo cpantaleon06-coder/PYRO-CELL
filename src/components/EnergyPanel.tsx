@@ -1,15 +1,26 @@
 import { useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { computeEnergyBalance, computeMassBalance, ENERGY_CONSTANTS } from "../lib/constants";
+import { computeEnergyBalance, computeMassBalance, ENERGY_CONSTANTS, PLANT_REFERENCE } from "../lib/constants";
 
-const FRESH_KG = 1500;
-const INITIAL_MOISTURE = 0.82;
+interface EnergyPanelProps {
+  /** Temperatura de reactor compartida con el módulo económico (estado en App). */
+  reactorTempC: number;
+  onReactorTempChange: (tempC: number) => void;
+}
 
-export function EnergyPanel() {
-  const [reactorTempC, setReactorTempC] = useState<number>(ENERGY_CONSTANTS.reactorDesignTempC);
+export function EnergyPanel({ reactorTempC, onReactorTempChange }: EnergyPanelProps) {
   const [dryingMode, setDryingMode] = useState<"passive_only" | "passive_plus_thermal">("passive_plus_thermal");
 
-  const mass = useMemo(() => computeMassBalance(FRESH_KG, INITIAL_MOISTURE, 0.6, 0.2), []);
+  const mass = useMemo(
+    () =>
+      computeMassBalance(
+        PLANT_REFERENCE.freshSargassumKgPerDay,
+        PLANT_REFERENCE.initialMoisturePct,
+        PLANT_REFERENCE.targetMoisturePctStage1,
+        PLANT_REFERENCE.targetMoisturePctStage2
+      ),
+    []
+  );
   const energy = useMemo(() => computeEnergyBalance(mass, reactorTempC), [mass, reactorTempC]);
 
   const chartData = [
@@ -35,9 +46,12 @@ export function EnergyPanel() {
         max={600}
         step={10}
         value={reactorTempC}
-        onChange={(e) => setReactorTempC(Number(e.target.value))}
+        onChange={(e) => onReactorTempChange(Number(e.target.value))}
         className="w-full mb-4 accent-accent"
       />
+      <p className="text-xs text-text-muted -mt-3 mb-4">
+        Punto de diseño compartido: también recalcula el rendimiento de biochar en el módulo económico.
+      </p>
 
       <label className="text-xs text-text-secondary block mb-1.5">Modo de secado, Etapa 2</label>
       <select

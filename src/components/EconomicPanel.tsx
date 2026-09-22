@@ -1,15 +1,40 @@
 import { useMemo, useState } from "react";
 import { Line, LineChart, ReferenceDot, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { breakevenPrice, ECONOMIC_CONSTANTS } from "../lib/constants";
+import {
+  biocharYieldInterpolated,
+  breakevenPrice,
+  computeMassBalance,
+  ECONOMIC_CONSTANTS,
+  PLANT_REFERENCE,
+} from "../lib/constants";
 
 const CURVE_DATA = Array.from({ length: 51 }, (_, i) => {
   const x = -25 + i;
   return { x, price: Number(breakevenPrice(x).toFixed(2)) };
 });
 
-export function EconomicPanel() {
+const MASS = computeMassBalance(
+  PLANT_REFERENCE.freshSargassumKgPerDay,
+  PLANT_REFERENCE.initialMoisturePct,
+  PLANT_REFERENCE.targetMoisturePctStage1,
+  PLANT_REFERENCE.targetMoisturePctStage2
+);
+
+interface EconomicPanelProps {
+  /** Temperatura de reactor compartida con el módulo energético (estado en App).
+   *  Es la vía real por la que la temperatura toca la economía: cambia el rendimiento
+   *  de biochar, que es el producto que se vende. */
+  reactorTempC: number;
+}
+
+export function EconomicPanel({ reactorTempC }: EconomicPanelProps) {
   const [acquisitionCost, setAcquisitionCost] = useState(2);
   const price = useMemo(() => breakevenPrice(acquisitionCost), [acquisitionCost]);
+
+  const biocharYield = biocharYieldInterpolated(reactorTempC);
+  const biocharKgPerDay = biocharYield * MASS.materiaSecaKg;
+  // Ingreso indicativo al precio base de comparación de Cheatham et al. ($100/t).
+  const biocharRevenuePerDay = (biocharKgPerDay / 1000) * ECONOMIC_CONSTANTS.baselineBiocharPriceUSDPerTon;
 
   return (
     <div className="bg-bg-panel border border-border rounded-lg p-5">
@@ -52,9 +77,22 @@ export function EconomicPanel() {
         <Row label="Capital total" value={`$${ECONOMIC_CONSTANTS.capitalCostUSD.toLocaleString("en-US")}`} />
         <Row label="Punto de equilibrio" value={`Año ${ECONOMIC_CONSTANTS.breakevenYear}`} />
       </div>
+
+      <div className="space-y-2 text-sm border-t border-border pt-3 mt-3">
+        <p className="text-xs text-text-secondary mb-1">
+          Producto vendible a <span className="text-accent font-data">{reactorTempC}°C</span> (slider del módulo energético)
+        </p>
+        <Row label="Rendimiento de biochar" value={`${(biocharYield * 100).toFixed(1)}%`} />
+        <Row label="Biochar producido" value={`${biocharKgPerDay.toFixed(1)} kg/día`} />
+        <Row label={`Ingreso a $${ECONOMIC_CONSTANTS.baselineBiocharPriceUSDPerTon}/t`} value={`$${biocharRevenuePerDay.toFixed(2)}/día`} />
+      </div>
+
       <p className="text-xs text-text-muted mt-3 leading-relaxed">
         Curva interpolada por el proyecto entre los 3 escenarios que reportó Cheatham et al. 2026, no es la
-        fórmula original del estudio.
+        fórmula original del estudio. El rendimiento de biochar es una <span className="text-energy">interpolación propia</span>{" "}
+        entre Milledge (67.6% a 400°C) y Cheatham (51.91% a 600°C), no un dato medido a temperaturas intermedias;
+        el precio de equilibrio, en cambio, solo depende del costo de adquisición (la temperatura no entra en esa
+        fórmula del estudio).
       </p>
     </div>
   );
