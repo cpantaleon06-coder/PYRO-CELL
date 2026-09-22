@@ -46,9 +46,24 @@ Independent of the web app, we modeled the physical process and plant layout in 
 
 Pre-treatment dominates the energy budget far more than the reactor itself: mechanical dewatering and passive solar drying determine whether the whole pipeline is energy-positive, long before pyrolysis chemistry matters. And research rigor has a compounding return: nearly every "small" correction in this build (a unit error, a moisture basis, a temperature mismatch) was only caught because an earlier verification habit made the next inconsistency visible.
 
+## The bigger vision
+
+Everything above is what exists today: a verified, working simulation. What follows is deliberately framed as vision, not as something built, because presenting it any other way would misrepresent the project.
+
+**The idea we're building toward:** a network of coastal plants across the Mexican Caribbean, and eventually the wider Caribbean basin and West Africa, wherever pelagic Sargassum makes landfall, that convert contaminated seaweed into two products at once: clean energy (biochar, syngas, bio-oil) and a second output stream of treated water, using a multi-barrier system (biochar adsorption, followed by iron-oxide/hydroxide polishing, with reverse osmosis as an optional higher-assurance barrier) engineered specifically to address the arsenic-leaching question we flagged rather than around it.
+
+**Why this isn't just aspiration.** The market this plugs into is real and growing fast, not a hypothetical future:
+
+- The global biochar market is valued at roughly $700-800M in 2025-2026 and multiple independent market research firms project it reaching $1.6-2.6B by 2033-2035, at a compound annual growth rate around 11-14.5%.
+- Corporate demand for durable carbon removal is projected to grow roughly 25x by 2030, reaching 40-200 million tonnes of CO2-equivalent per year. Microsoft alone contracted 1.24 million tonnes of biochar carbon removal in 2025; Google contracted 100,000 tonnes through a partnership with an Indian biochar producer the same year.
+- Water treatment and filtration is already tracked as a distinct, named application segment in industry biochar market reports, alongside agriculture and construction, not a speculative use case we're inventing.
+- An estimated $15.2B in industry-wide investment is projected to be needed to meet forecast biochar demand growth through the 2030s, which is as much a statement about where capital is already moving as about future need.
+
+**What would have to be true first.** The leaching test on our own biochar, real reactor engineering sizing, and CSP field sizing, all already listed above, are not footnotes to this vision, they are its prerequisites. We are choosing to say that plainly rather than let the scale of the opportunity paper over what is still unverified.
+
 ## What's next for PYRO-CELL
 
-- A real leaching test on our own biochar before treating the water-filter application as validated, not just adsorption-capable.
+- A real leaching test on our own biochar before treating the water-filter application as validated, not just adsorption-capable. If leaching is significant, the multi-barrier design (iron-oxide/hydroxide polishing after the biochar stage, reverse osmosis as an optional deeper barrier) is our proposed mitigation, engineered specifically for that failure mode, not a generic add-on.
 - Actual reactor engineering sizing (volume, residence time) for the throughput we model; our current 3D plant sketch uses illustrative dimensions, not a calculated vessel.
 - Sizing the CSP field and off-gas treatment for thermal regeneration of spent filter biochar, since some adsorbed metals can volatilize at regeneration temperatures.
 - Revenue-model update: current economics use a $100/t biochar baseline for comparability with Cheatham et al.; the 2026 market (certified biochar plus carbon credits) trades at $400-1,200/t physical and $150-400/tCO2e, pending the characterization work certification requires.
