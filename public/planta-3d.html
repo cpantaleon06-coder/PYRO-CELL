@@ -3,83 +3,82 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>PYRO-CELL — Simulación 3D de planta</title>
+<title>PYRO-CELL — Planta de procesamiento 3D</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Poppins:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root{
-    --ink:#f2f5f8; --muted:#93a4b3; --accent:#5b7cff; --bg:#0b1016;
+    --ink:#f2f5f8; --muted:#93a4b3; --accent:#5b7cff; --carbon:#16181d;
     --energy:#e3a03c; --water:#4fb8ae; --surplus:#7cb86b; --deficit:#e0654a;
   }
   *{box-sizing:border-box}
-  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+  html,body{margin:0;height:100%;background:var(--carbon);color:var(--ink);
     font-family:"Poppins",sans-serif;overflow:hidden}
   #app{position:fixed;inset:0}
   canvas{display:block}
 
-  .hud{position:absolute;pointer-events:none}
-  #title{top:24px;left:28px}
-  #title h1{margin:0;font-family:"Space Grotesk",sans-serif;font-size:20px;font-weight:600;letter-spacing:.2px}
+  #title{position:absolute;top:24px;left:28px;pointer-events:none}
+  #title h1{margin:0;font-family:"Space Grotesk",sans-serif;font-size:20px;font-weight:600}
   #title p{margin:4px 0 0;font-size:12px;color:var(--muted)}
 
-  #caption{left:28px;bottom:28px;max-width:440px;opacity:0;transform:translateY(8px);
-    transition:opacity .5s ease,transform .5s ease}
-  #caption.show{opacity:1;transform:translateY(0)}
-  #caption .step{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--accent);letter-spacing:1px}
-  #caption h2{margin:6px 0 8px;font-family:"Space Grotesk",sans-serif;font-size:22px;font-weight:600}
-  #caption p{margin:0;font-size:13px;line-height:1.55;color:#c7d3dd}
-  #caption .figs{margin-top:10px;display:flex;flex-wrap:wrap;gap:6px}
-  #caption .fig{font-family:"IBM Plex Mono",monospace;font-size:11px;padding:3px 8px;border-radius:4px;
-    background:rgba(91,124,255,.14);border:1px solid rgba(91,124,255,.35);color:#cdd8ff}
-  #caption .warn{background:rgba(224,101,74,.14);border-color:rgba(224,101,74,.4);color:#ffc9bb}
+  #controls{position:absolute;top:24px;right:28px;display:flex;gap:8px}
+  a.btn,button{font-family:"Space Grotesk",sans-serif;font-size:12px;font-weight:600;color:var(--ink);
+    background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.18);border-radius:6px;
+    padding:8px 14px;cursor:pointer;transition:background .15s;text-decoration:none;display:inline-block}
+  a.btn:hover,button:hover{background:rgba(255,255,255,.14)}
+  a.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
 
-  #progress{position:absolute;left:28px;right:28px;bottom:12px;height:2px;background:rgba(255,255,255,.08)}
-  #bar{height:100%;width:0;background:var(--accent);transition:width .25s linear}
+  #hint{position:absolute;left:28px;bottom:24px;font-size:12px;color:var(--muted);pointer-events:none}
+  #hint b{color:#c7d3dd;font-weight:500}
 
-  #controls{position:absolute;top:24px;right:28px;display:flex;gap:8px;pointer-events:auto}
+  #legend{position:absolute;right:28px;bottom:24px;font-size:11px;color:var(--muted);text-align:right;line-height:1.7;pointer-events:none}
+  #legend b{color:#c7d3dd;font-weight:500}
+  .sw{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;vertical-align:middle}
 
-  /* Etiquetas fijas que identifican cada parte del plano (CSS2DRenderer) */
-  .lbl{font-family:"Space Grotesk",sans-serif;font-size:11px;font-weight:600;color:#e9eef5;
-    background:rgba(11,16,22,.84);border:1px solid rgba(255,255,255,.16);border-left:3px solid var(--accent);
-    border-radius:5px;padding:5px 9px;white-space:nowrap;pointer-events:none;
-    box-shadow:0 2px 10px rgba(0,0,0,.45)}
+  /* ---- Etiquetas de cada parte ---- */
+  .lbl{position:relative;font-family:"Space Grotesk",sans-serif;font-size:11px;font-weight:600;
+    color:#e9eef5;background:rgba(22,24,29,.88);border:1px solid rgba(255,255,255,.16);
+    border-left:3px solid var(--accent);border-radius:5px;padding:5px 9px;white-space:nowrap;
+    cursor:help;pointer-events:auto;box-shadow:0 2px 10px rgba(0,0,0,.5);
+    transition:border-color .15s,background .15s}
+  .lbl:hover{background:rgba(22,24,29,.98);border-color:var(--accent)}
   .lbl .n{font-family:"IBM Plex Mono",monospace;color:#8fa6ff;margin-right:6px}
   .lbl small{display:block;font-family:"Poppins",sans-serif;font-weight:400;font-size:10px;
-    color:#9db0c0;margin-top:3px;letter-spacing:.1px}
+    color:#9db0c0;margin-top:3px}
   .lbl.compact{font-size:10px;padding:4px 8px}
   .lbl.compact small{display:none}
   .lbl.warn{border-left-color:var(--deficit)}
   .lbl.warn small{color:#f0b3a3}
-  button{font-family:"Space Grotesk",sans-serif;font-size:12px;font-weight:600;color:var(--ink);
-    background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.18);border-radius:6px;
-    padding:8px 14px;cursor:pointer;transition:background .15s}
-  button:hover{background:rgba(255,255,255,.14)}
-  button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
 
-  #legend{position:absolute;right:28px;bottom:28px;font-size:11px;color:var(--muted);text-align:right;line-height:1.7}
-  #legend b{color:#c7d3dd;font-weight:500}
-  .sw{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;vertical-align:middle}
+  /* Tooltip unico, fuera del contenedor 3D: CSS2DRenderer reescribe el z-index de cada
+     etiqueta en cada frame, asi que un tooltip anidado queda tapado por otras etiquetas. */
+  #tip{position:fixed;z-index:100;width:300px;pointer-events:none;
+    background:rgba(16,18,23,.985);border:1px solid rgba(255,255,255,.18);border-top:2px solid var(--accent);
+    border-radius:6px;padding:11px 13px;font-family:"Poppins",sans-serif;font-weight:400;
+    font-size:11.5px;line-height:1.55;color:#c7d3dd;box-shadow:0 14px 40px rgba(0,0,0,.7);
+    opacity:0;transform:translateY(-4px);transition:opacity .18s,transform .18s}
+  #tip.show{opacity:1;transform:translateY(0)}
+  #tip.warn{border-top-color:var(--deficit)}
+  #tip .flag{display:block;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.12);
+    color:#f0b3a3;font-size:11px}
 </style>
 </head>
 <body>
 <div id="app"></div>
 
-<div class="hud" id="title">
+<div id="title">
   <h1>PYRO-CELL — Planta de procesamiento</h1>
-  <p>Simulación 3D del layout · huella 45 × 25 m · geometría de <span style="font-family:'IBM Plex Mono',monospace">plano.m</span></p>
+  <p>Layout 3D · huella 45 × 25 m · geometría de plano.m</p>
 </div>
 
 <div id="controls">
   <button id="btn-labels">Etiquetas: on</button>
-  <button id="play" class="primary">▶ Iniciar recorrido</button>
-  <button id="free">Vista libre</button>
+  <a class="btn" href="/#/dashboard">Dashboard</a>
+  <a class="btn primary" href="/">Inicio</a>
 </div>
 
-<div class="hud" id="caption">
-  <div class="step" id="cap-step"></div>
-  <h2 id="cap-title"></h2>
-  <p id="cap-text"></p>
-  <div class="figs" id="cap-figs"></div>
-</div>
+<div id="tip"></div>
+
+<div id="hint">Arrastra para girar · rueda para acercar · <b>pasa el cursor sobre una etiqueta</b> para ver qué hace</div>
 
 <div id="legend">
   <div><span class="sw" style="background:#4fb8ae"></span><b>Etapa 1</b> · recepción y centrifugado</div>
@@ -87,8 +86,6 @@
   <div><span class="sw" style="background:#e0654a"></span><b>Etapa 3</b> · reactor de pirólisis</div>
   <div><span class="sw" style="background:#4aa8d8"></span><b>Etapa 4</b> · filtros de biochar</div>
 </div>
-
-<div id="progress"><div id="bar"></div></div>
 
 <script type="importmap">
 {"imports":{
@@ -102,13 +99,13 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 
-// Coordenadas tomadas de plano.m (X = largo 0-45 m, Y = ancho 0-25 m, Z = altura).
-// Three.js usa Y como vertical, así que mapeamos: three(x, z_plano, y_plano).
+// plano.m: X = largo 0-45 m, Y = ancho 0-25 m, Z = altura.
+// Three.js usa Y vertical, asi que mapeamos three(x, z_plano, y_plano).
 const P = (x, y, z = 0) => new THREE.Vector3(x, z, y);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0b1016);
-scene.fog = new THREE.Fog(0x0b1016, 60, 160);
+scene.background = new THREE.Color(0x16181d);
+scene.fog = new THREE.Fog(0x16181d, 65, 170);
 
 const camera = new THREE.PerspectiveCamera(48, innerWidth / innerHeight, 0.1, 500);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -116,52 +113,50 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
 document.getElementById('app').appendChild(renderer.domElement);
 
-// Capa de etiquetas HTML posicionadas en 3D (no se deforman con la perspectiva)
 const labelRenderer = new CSS2DRenderer();
 labelRenderer.setSize(innerWidth, innerHeight);
 labelRenderer.domElement.style.position = 'absolute';
 labelRenderer.domElement.style.top = '0';
 labelRenderer.domElement.style.left = '0';
-labelRenderer.domElement.style.pointerEvents = 'none';
+labelRenderer.domElement.style.pointerEvents = 'none'; // solo las etiquetas capturan el cursor
 document.getElementById('app').appendChild(labelRenderer.domElement);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.target.set(22.5, 2, 12.5);
-camera.position.set(-18, 26, 46);
+controls.maxPolarAngle = Math.PI / 2.05; // no dejar que la camara baje del suelo
+camera.position.set(-16, 22, 44);
 
 scene.add(new THREE.AmbientLight(0xffffff, 0.55));
 const key = new THREE.DirectionalLight(0xffffff, 1.5);
 key.position.set(30, 40, 20);
 scene.add(key);
-const rim = new THREE.DirectionalLight(0x5b7cff, 0.8);
+const rim = new THREE.DirectionalLight(0x5b7cff, 0.85);
 rim.position.set(-25, 15, -15);
 scene.add(rim);
 
-// ---- Suelo y envolvente (45 x 25 m, muros a 8 m) ----
+// ---- Suelo ----
 const slab = new THREE.Mesh(
   new THREE.BoxGeometry(45, 0.25, 25),
-  new THREE.MeshStandardMaterial({ color: 0x1b2430, roughness: 0.95 })
+  new THREE.MeshStandardMaterial({ color: 0x232b36, roughness: 0.95 })
 );
 slab.position.set(22.5, -0.125, 12.5);
 scene.add(slab);
 
-const grid = new THREE.GridHelper(60, 30, 0x2b3a4a, 0x1d2836);
-grid.position.set(22.5, 0.01, 12.5);
+const grid = new THREE.GridHelper(70, 35, 0x2f3d4d, 0x222c38);
+grid.position.set(22.5, 0.005, 12.5);
 scene.add(grid);
 
 function wireBox(x, y, w, d, h, color) {
-  const g = new THREE.BoxGeometry(w, h, d);
   const e = new THREE.LineSegments(
-    new THREE.EdgesGeometry(g),
-    new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.55 })
+    new THREE.EdgesGeometry(new THREE.BoxGeometry(w, h, d)),
+    new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.5 })
   );
   e.position.set(x + w / 2, h / 2, y + d / 2);
   scene.add(e);
 }
-wireBox(0, 0, 45, 25, 8, 0x3b6ea8); // envolvente de nave
+wireBox(0, 0, 45, 25, 8, 0x3b6ea8);
 
-// ---- Helper de volumen sólido ----
 function box(x, y, w, d, h, color, z = 0) {
   const m = new THREE.Mesh(
     new THREE.BoxGeometry(w, h, d),
@@ -171,12 +166,14 @@ function box(x, y, w, d, h, color, z = 0) {
   scene.add(m);
   const e = new THREE.LineSegments(
     new THREE.EdgesGeometry(m.geometry),
-    new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.22 })
+    new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.2 })
   );
   e.position.copy(m.position);
   scene.add(e);
   return m;
 }
+
+/** Cilindro apoyado: z es la cota de su BASE, no la del centro. */
 function cyl(x, y, r, h, color, z = 0) {
   const m = new THREE.Mesh(
     new THREE.CylinderGeometry(r, r, h, 32),
@@ -187,122 +184,110 @@ function cyl(x, y, r, h, color, z = 0) {
   return m;
 }
 
-// ===== Etapa 1: recepción y centrifugado (plano.m: 1,2 → 6 x 10 x 3) =====
+/** Poste de soporte: evita que los equipos elevados queden flotando. */
+function post(x, y, height, r = 0.07, color = 0x8fa3b3) {
+  const m = new THREE.Mesh(
+    new THREE.CylinderGeometry(r, r, height, 8),
+    new THREE.MeshStandardMaterial({ color, roughness: 0.5, metalness: 0.6 })
+  );
+  m.position.set(x, height / 2, y);
+  scene.add(m);
+  return m;
+}
+
+// ===== Etapa 1 =====
 box(1, 2, 6, 10, 3, 0x1a6678);
 
-// PV 8.3 kWp: paneles inclinados (plano.m meshgrid 1.5:1.3:6.5 × 15.5:1.8:22)
+// PV 8.3 kWp: paneles inclinados SOBRE POSTES (antes flotaban a 2.3 m sin soporte)
 for (let px = 1.5; px <= 6.5; px += 1.3) {
   for (let py = 15.5; py <= 22; py += 1.8) {
+    const cx = px + 0.5, cy = py + 0.65;
     const p = new THREE.Mesh(
       new THREE.BoxGeometry(1.1, 0.06, 1.4),
       new THREE.MeshStandardMaterial({ color: 0x21386e, roughness: 0.35, metalness: 0.5 })
     );
-    p.position.set(px + 0.5, 2.3, py + 0.65);
+    p.position.set(cx, 1.5, cy);
     p.rotation.x = -0.42;
     scene.add(p);
+    post(cx - 0.42, cy, 1.5, 0.05);
+    post(cx + 0.42, cy, 1.32, 0.05);
   }
 }
 
-// ===== Etapa 2: invernadero 35 m² + colectores térmicos 89.4 m² =====
+// ===== Etapa 2 =====
 const green = box(10, 2, 5, 7, 3.5, 0x2f7a35);
-green.material.transparent = true; green.material.opacity = 0.75;
+green.material.transparent = true; green.material.opacity = 0.72;
 box(10, 12, 10, 9, 2, 0x8a5f1c);
-// tubos evacuados sobre los colectores
 for (let tx = 10.6; tx <= 19.4; tx += 1.1) {
   const t = new THREE.Mesh(
     new THREE.CylinderGeometry(0.14, 0.14, 8.6, 10),
     new THREE.MeshStandardMaterial({ color: 0xe3a03c, roughness: 0.3, metalness: 0.6 })
   );
-  t.position.set(tx, 2.12, 16.5);
+  t.position.set(tx, 2.12, 16.5); // apoyados sobre la cubierta del colector (h = 2 m)
   t.rotation.x = Math.PI / 2;
   scene.add(t);
 }
 
-// ===== Etapa 3: reactor de pirólisis (r=1.5 m, h=6 m, base z=2) =====
-const reactor = cyl(25, 6, 1.5, 6, 0xc44a1c, 2);
-// Campo CSP (ilustrativo, sin dimensionar)
-box(23, 14, 10, 8, 0.3, 0x243046);
+// ===== Etapa 3: reactor APOYADO sobre zapata (antes su base flotaba a 2 m) =====
+box(23.2, 4.2, 3.6, 3.6, 0.45, 0x2b3542); // zapata de concreto
+const reactor = cyl(25, 6, 1.5, 7.2, 0xc44a1c, 0.45);
+cyl(25, 6, 1.75, 0.35, 0x6b7784, 0.45); // faldon de anclaje
+
+// Campo CSP: espejos sobre postes (antes flotaban a 1.5 m)
+box(23, 14, 10, 8, 0.25, 0x243046);
 for (let cx = 24; cx <= 32; cx += 2) {
   const mir = new THREE.Mesh(
     new THREE.BoxGeometry(0.5, 0.04, 7),
     new THREE.MeshStandardMaterial({ color: 0xb8cfe8, roughness: 0.12, metalness: 0.9 })
   );
-  mir.position.set(cx, 1.5, 18);
+  mir.position.set(cx, 1.6, 18);
   mir.rotation.z = 0.32;
   scene.add(mir);
+  post(cx, 15.2, 1.6, 0.06);
+  post(cx, 20.8, 1.6, 0.06);
 }
 
-// ===== Etapa 4: banco de filtros de biochar (4 columnas) =====
+// ===== Etapa 4: filtros + cabezal que nace en el reactor (antes la tuberia salia del aire) =====
 const filterYs = [3, 8, 13, 18];
+const HEADER_X = 33, PIPE_Z = 2.2;
+const headerRun = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.12, 0.12, HEADER_X - 26.5, 10),
+  new THREE.MeshStandardMaterial({ color: 0x8fa3b3, roughness: 0.5, metalness: 0.6 })
+);
+headerRun.position.set((26.5 + HEADER_X) / 2, PIPE_Z, 6);
+headerRun.rotation.z = Math.PI / 2;
+scene.add(headerRun);
+post(HEADER_X, 6, PIPE_Z, 0.08);
 filterYs.forEach((fy) => {
   cyl(38, fy, 0.8, 4, 0x2f8fc0);
+  const a = P(HEADER_X, 6, PIPE_Z), b = P(38, fy, PIPE_Z);
   const pipe = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.09, 0.09, Math.hypot(38 - 33, fy - 8), 8),
+    new THREE.CylinderGeometry(0.09, 0.09, a.distanceTo(b), 8),
     new THREE.MeshStandardMaterial({ color: 0x8fa3b3, roughness: 0.5, metalness: 0.5 })
   );
-  const a = P(33, 8, 2), b = P(38, fy, 2);
   pipe.position.copy(a.clone().add(b).multiplyScalar(0.5));
   pipe.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
   scene.add(pipe);
 });
 
-// Bodega de colchón sellada (16.5 t)
+// Bodega de colchon
 box(36, 20, 6, 4.5, 3, 0x4a5260);
 
-// Ciclo de regeneración térmica (600-800 °C), línea punteada de vuelta al reactor
+// Ciclo de regeneracion termica
 const regen = new THREE.Line(
-  new THREE.BufferGeometry().setFromPoints([P(38, 1.5, 4.5), P(31, 2.5, 7.5), P(25, 3, 8)]),
+  new THREE.BufferGeometry().setFromPoints([P(38, 1.5, 4.2), P(31, 2.5, 7), P(25.8, 5, 7.4)]),
   new THREE.LineDashedMaterial({ color: 0xffd966, dashSize: 0.9, gapSize: 0.6 })
 );
 regen.computeLineDistances();
 scene.add(regen);
 
-// ================= Etiquetas: qué es cada parte del plano =================
-// Numeración idéntica a la leyenda de plano.m. Las cifras son las ya verificadas
-// en PYRO_CELL.md / constants.ts; las salvedades van marcadas en rojo.
-const LABELS = [];
-function label(n, title, sub, x, y, z, warn) {
-  const d = document.createElement('div');
-  d.className = 'lbl' + (warn ? ' warn' : '');
-  const num = document.createElement('span');
-  num.className = 'n'; num.textContent = n;
-  d.appendChild(num);
-  d.appendChild(document.createTextNode(title));
-  const sm = document.createElement('small');
-  sm.textContent = sub;
-  d.appendChild(sm);
-  const o = new CSS2DObject(d);
-  o.position.set(x, z, y); // plano(x,y,z) -> three(x,z,y)
-  scene.add(o);
-  LABELS.push({ obj: o, el: d });
-  return o;
-}
-
-label('1', 'Recepción y centrifugado',
-      'Centrífuga decantadora · 82% → 60% humedad · 825 kg agua/día', 4, 7, 4.4);
-label('2', 'Arreglo fotovoltaico',
-      '8.3 kWp · alimenta la centrífuga (45.83 kWh/día)', 4, 18.7, 3.4);
-label('3', 'Invernadero solar pasivo',
-      '35 m² · 60% → 20% humedad · 192.5 kWh/día', 12.5, 5.5, 5.0);
-label('4', 'Colectores térmicos',
-      '89.4 m² tubos evacuados · cubren el déficit de 295 kWh/día', 15, 16.5, 3.4);
-label('5', 'Reactor de pirólisis',
-      '400-600 °C (diseño 500 °C) · 337.5 kg → 161.3 kg biochar', 25, 6, 9.4);
-label('6', 'Campo CSP',
-      'Calor solar concentrado · ilustrativo, sin dimensionar', 28, 19.5, 2.6, true);
-label('7', 'Banco de filtros de biochar',
-      'Tratamiento de agua · requiere prueba de lixiviación', 40, 15.5, 6.6, true);
-label('8', 'Bodega de colchón sellada',
-      '16.5 t · 82.7 m³ · 49 días de reserva', 39, 22.25, 4.4);
-label('–', 'Regeneración térmica',
-      '600-800 °C · el filtro saturado vuelve al reactor', 33, 1.0, 5.2);
-
-// ---- Partículas de flujo de material por la ruta del proceso ----
-const routePts = [P(4, 7, 3.2), P(12.5, 5.5, 3.8), P(15, 16.5, 2.4), P(25, 6, 8.4), P(38, 8, 4.2)];
-const route = new THREE.CatmullRomCurve3(routePts);
+// ---- Flujo de material ----
+const route = new THREE.CatmullRomCurve3([
+  P(4, 7, 3.2), P(12.5, 5.5, 3.8), P(15, 16.5, 2.5), P(25, 6, 7.8), P(38, 8, 4.3),
+]);
 scene.add(new THREE.Line(
   new THREE.BufferGeometry().setFromPoints(route.getPoints(120)),
-  new THREE.LineBasicMaterial({ color: 0x5b7cff, transparent: true, opacity: 0.35 })
+  new THREE.LineBasicMaterial({ color: 0x5b7cff, transparent: true, opacity: 0.32 })
 ));
 const flow = [];
 for (let i = 0; i < 26; i++) {
@@ -314,99 +299,93 @@ for (let i = 0; i < 26; i++) {
   flow.push({ mesh: s, t: i / 26 });
 }
 
-// ================= Recorrido guiado =================
-const STOPS = [
-  { step: 'VISTA GENERAL', title: 'Planta PYRO-CELL', cam: [-18, 26, 46], look: [22.5, 2, 12.5],
-    text: 'Huella de 45 × 25 m en la costa de Quintana Roo. El material entra húmedo por la izquierda y sale como biochar y agua tratada por la derecha.',
-    figs: ['1,500 kg/día', '82% humedad inicial'] },
-  { step: 'ETAPA 1', title: 'Recepción y centrifugado', cam: [-6, 12, 20], look: [4, 1.5, 7],
-    text: 'Centrífuga decantadora que remueve el agua libre por fuerza mecánica, sin gastar energía térmica. Baja la humedad del 82% al 60%.',
-    figs: ['825 kg agua removida', '45.83 kWh/día', 'PV 8.3 kWp'] },
-  { step: 'ETAPA 2 · A', title: 'Invernadero solar pasivo', cam: [6, 11, 18], look: [12.5, 1.8, 5.5],
-    text: 'Camas perforadas dentro de una nave de 35 m² que evapora el agua intracelular con radiación solar. Se le aplica una eficiencia real del 50%, no la captura teórica.',
-    figs: ['35 m²', '192.5 kWh/día disponibles'] },
-  { step: 'ETAPA 2 · B', title: 'Colectores térmicos', cam: [9, 14, 30], look: [15, 1.5, 16.5],
-    text: 'Tubos evacuados que cierran el déficit energético del invernadero sin ampliarlo ni alargar la jornada. Llevan el sargazo al 20% de humedad.',
-    figs: ['89.4 m²', 'déficit 295 kWh/día cubierto'] },
-  { step: 'ETAPA 3', title: 'Reactor de pirólisis', cam: [18, 13, 20], look: [25, 4, 6],
-    text: 'Reactor tubular con arquitectura híbrida: CSP cuando hay sol directo, syngas recirculado cuando no. Punto de diseño 500 °C dentro del rango 400-600 °C.',
-    figs: ['337.5 kg → 161.3 kg biochar', 'superávit 2.30 MJ/kg'] },
-  { step: 'CAMPO CSP', title: 'Concentración solar', cam: [22, 16, 34], look: [28, 1.5, 18],
-    text: 'Espejos que aportan el calor primario al reactor en modo alotérmico. Las dimensiones aquí son ilustrativas: el campo todavía no está dimensionado.',
-    figs: ['ilustrativo, sin dimensionar'], warn: 0 },
-  { step: 'ETAPA 4', title: 'Banco de filtros de biochar', cam: [46, 12, 22], look: [38, 2, 10.5],
-    text: 'El biochar producido se reutiliza como medio adsorbente para tratar agua. La línea punteada devuelve el filtro saturado al reactor para regeneración térmica a 600-800 °C.',
-    figs: ['4 columnas', 'requiere prueba de lixiviación antes de operar'], warn: 1 },
-  { step: 'RESERVA', title: 'Bodega de colchón sellada', cam: [44, 11, 30], look: [39, 1.5, 22],
-    text: 'Almacena sargazo acondicionado para sostener el reactor a ritmo reducido durante el núcleo duro de la temporada baja (enero-febrero), en vez de detenerlo.',
-    figs: ['16.5 t', '82.7 m³', '49 días de reserva'] },
-  { step: 'CIERRE', title: 'Ciclo completo', cam: [-14, 30, 50], look: [22.5, 2, 12.5],
-    text: 'Retirar el sargazo antes de que se descomponga en la orilla es en sí una intervención de protección del agua costera. El diseño energético es lo que la vuelve sostenible en operación.',
-    figs: ['energía neta positiva', 'sin dependencia de red en vivo'] },
-];
-
-const capEl = document.getElementById('caption');
-const barEl = document.getElementById('bar');
-let tour = null;
-
-function showCaption(s) {
-  document.getElementById('cap-step').textContent = s.step;
-  document.getElementById('cap-title').textContent = s.title;
-  document.getElementById('cap-text').textContent = s.text;
-  const figs = document.getElementById('cap-figs');
-  figs.innerHTML = '';
-  s.figs.forEach((f, i) => {
-    const d = document.createElement('div');
-    d.className = 'fig' + (s.warn === i || (s.warn === 1 && i === 1) ? ' warn' : '');
-    d.textContent = f;
-    figs.appendChild(d);
-  });
-  capEl.classList.add('show');
+// ================= Etiquetas con explicacion al pasar el cursor =================
+const tipBox = document.getElementById('tip');
+function showTip(anchor, text, flag, warn) {
+  tipBox.textContent = text;
+  if (flag) {
+    const f = document.createElement('span');
+    f.className = 'flag';
+    f.textContent = flag;
+    tipBox.appendChild(f);
+  }
+  tipBox.classList.toggle('warn', !!warn);
+  tipBox.classList.add('show');
+  const r = anchor.getBoundingClientRect();
+  const w = 300, gap = 10;
+  let left = r.left;
+  if (left + w > innerWidth - 12) left = innerWidth - w - 12; // no salirse por la derecha
+  let top = r.bottom + gap;
+  if (top + tipBox.offsetHeight > innerHeight - 12) top = r.top - tipBox.offsetHeight - gap;
+  tipBox.style.left = Math.max(12, left) + 'px';
+  tipBox.style.top = Math.max(12, top) + 'px';
+}
+function hideTip() {
+  tipBox.classList.remove('show');
 }
 
-const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
-
-function startTour() {
-  controls.enabled = false;
-  const HOLD = 5200, MOVE = 2600;
-  let i = 0;
-  const from = { pos: camera.position.clone(), look: controls.target.clone() };
-  const runStop = () => {
-    if (i >= STOPS.length) { tour = null; controls.enabled = true; barEl.style.width = '100%';
-      document.getElementById('play').textContent = '▶ Repetir recorrido'; return; }
-    const s = STOPS[i];
-    const startPos = camera.position.clone(), startLook = controls.target.clone();
-    const endPos = new THREE.Vector3(...s.cam), endLook = new THREE.Vector3(...s.look);
-    const t0 = performance.now();
-    let shown = false; // la leyenda se muestra una sola vez al llegar, sin depender del timing de frames
-    capEl.classList.remove('show');
-    tour = () => {
-      const e = performance.now() - t0;
-      if (e < MOVE) {
-        const k = easeInOut(e / MOVE);
-        camera.position.lerpVectors(startPos, endPos, k);
-        controls.target.lerpVectors(startLook, endLook, k);
-      } else {
-        if (!shown) { showCaption(s); shown = true; }
-        camera.position.copy(endPos); controls.target.copy(endLook);
-        if (e > MOVE + HOLD) { i++; barEl.style.width = (i / STOPS.length * 100) + '%'; runStop(); }
-      }
-    };
-  };
-  from; runStop();
+const LABELS = [];
+function label(n, title, figs, tip, flag, x, y, z, warn) {
+  const d = document.createElement('div');
+  d.className = 'lbl' + (warn ? ' warn' : '');
+  const num = document.createElement('span');
+  num.className = 'n';
+  num.textContent = n;
+  d.appendChild(num);
+  d.appendChild(document.createTextNode(title));
+  const sm = document.createElement('small');
+  sm.textContent = figs;
+  d.appendChild(sm);
+  d.addEventListener('mouseenter', () => showTip(d, tip, flag, warn));
+  d.addEventListener('mouseleave', hideTip);
+  const o = new CSS2DObject(d);
+  o.position.set(x, z, y);
+  scene.add(o);
+  LABELS.push({ obj: o, el: d });
+  return o;
 }
 
-document.getElementById('play').onclick = () => { barEl.style.width = '0%'; startTour(); };
+label('1', 'Recepcion y centrifugado', '82% a 60% humedad - 825 kg agua/dia',
+  'Una centrifuga decantadora exprime el agua libre del sargazo recien cosechado por fuerza mecanica, sin gastar calor. Procesa lotes de 100 kg cada 10 minutos. El licor salino que sale se envasa como bioestimulante agricola en vez de tirarse.',
+  null, 4, 7, 4.4);
+
+label('2', 'Arreglo fotovoltaico', '8.3 kWp - 45.83 kWh/dia',
+  'Alimenta la centrifuga durante su ventana de operacion (08:00 a 10:00). Un banco de baterias se carga en los minutos de reposo entre lotes y descarga en la rafaga de centrifugado, que pide mucha mas potencia de la que el arreglo entrega en promedio.',
+  null, 4, 18.7, 3.0);
+
+label('3', 'Invernadero solar pasivo', '35 m2 - 60% a 20% humedad',
+  'Camas perforadas donde la radiacion solar evapora el agua intracelular que la centrifuga no puede sacar. Se modela con 50% de eficiencia real, no con la captura teorica pura: un invernadero pierde energia por transmision del plastico, re-irradiacion y conveccion.',
+  null, 12.5, 5.5, 5.0);
+
+label('4', 'Colectores termicos', '89.4 m2 - cubren 295 kWh/dia',
+  'Tubos evacuados que cierran el deficit energetico del invernadero sin ampliarlo ni alargar la jornada. Se eligieron termicos y no fotovoltaicos porque alcanzan mas del 60% de utilizacion, contra ~15% de un sistema PV con resistencia electrica.',
+  null, 15, 16.5, 3.4);
+
+label('5', 'Reactor de pirolisis', '400-600 C - 161.3 kg biochar/dia',
+  'Descompone termicamente el sargazo seco en biochar, syngas y bio-aceite. Arquitectura hibrida: el campo CSP aporta el calor cuando hay sol directo, y el propio syngas se recircula y quema cuando no lo hay, sin interrumpir la produccion. Punto de diseno: 500 C.',
+  null, 25, 6, 9.2);
+
+label('6', 'Campo CSP', 'calor solar concentrado',
+  'Espejos que concentran radiacion solar para aportar el calor primario al reactor en modo alotermico, evitando quemar el syngas cuando hay sol disponible.',
+  'Dimensiones ilustrativas: el campo todavia no esta dimensionado.', 28, 19.5, 2.6, true);
+
+label('7', 'Banco de filtros de biochar', 'tratamiento de agua',
+  'El biochar producido se reutiliza como medio adsorbente. Hay literatura que valida la adsorcion de cobre, mercurio y arsenico con biochar de sargazo.',
+  'Ningun estudio revisado prueba si el arsenico bioacumulado del propio sargazo se lixivia de vuelta al agua filtrada. Requiere prueba de lixiviacion antes de operar.', 40, 15.5, 6.6, true);
+
+label('8', 'Bodega de colchon sellada', '16.5 t - 82.7 m3 - 49 dias',
+  'Almacena sargazo acondicionado y sellado contra la humedad costera. Cubre el nucleo duro de la escasez (enero-febrero) para que el reactor opere a ritmo reducido en vez de detenerse por completo.',
+  null, 39, 22.25, 4.4);
+
+label('-', 'Regeneracion termica', '600-800 C',
+  'El filtro saturado vuelve al reactor y se regenera a 600-800 C, el metodo estandar de la industria para carbon activado saturado, sin necesidad de equipo adicional.',
+  'Los gases de escape necesitarian tratamiento: algunos metales pueden volatilizarse a esa temperatura.', 33, 1.0, 5.2);
+
 let labelsOn = true;
 document.getElementById('btn-labels').onclick = (ev) => {
   labelsOn = !labelsOn;
   labelRenderer.domElement.style.display = labelsOn ? '' : 'none';
   ev.currentTarget.textContent = labelsOn ? 'Etiquetas: on' : 'Etiquetas: off';
-};
-
-document.getElementById('free').onclick = () => {
-  tour = null; controls.enabled = true; capEl.classList.remove('show');
-  document.getElementById('play').textContent = '▶ Iniciar recorrido';
 };
 
 // ---- Loop ----
@@ -423,7 +402,7 @@ function animate() {
   LABELS.forEach((L) => {
     L.el.classList.toggle('compact', camera.position.distanceTo(L.obj.position) > 34);
   });
-  if (tour) tour(); else controls.update();
+  controls.update();
   renderer.render(scene, camera);
   labelRenderer.render(scene, camera);
 }
