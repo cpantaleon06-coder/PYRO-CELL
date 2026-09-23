@@ -221,6 +221,42 @@ export function getReactorStatus(
   return { supplyStatus: "baja", reactorRatePct: Math.min(100, 20 + 80 * bufferRatio + yearAdjustment) };
 }
 
+// ---------- Punto de operación estacional ----------
+// Aplica la heurística de estacionalidad al caudal nominal de la planta: si el reactor
+// opera al X% de su ritmo, la línea procesa el X% de los 1,500 kg/día nominales. Es la
+// aplicación directa del Componente 3 de la resolución de estacionalidad (reactor a
+// ritmo reducido durante la escasez, NO en pausa total), no un modelo nuevo.
+
+export interface OperatingPoint {
+  supplyStatus: SupplyStatus;
+  reactorRatePct: number;
+  nominalKgPerDay: number; // caudal de diseño, 1,500 kg/día
+  freshKgPerDay: number; // caudal real de este mes
+  deltaVsNominalPct: number; // 0 en temporada alta, negativo al operar reducido
+}
+
+export function computeOperatingPoint(
+  month: string,
+  bufferLevelKg: number,
+  yearType: YearType
+): OperatingPoint {
+  const { supplyStatus, reactorRatePct } = getReactorStatus(
+    month,
+    bufferLevelKg,
+    SEASONALITY_CONSTANTS.bufferTargetKg,
+    yearType
+  );
+  const nominalKgPerDay = PLANT_REFERENCE.freshSargassumKgPerDay;
+  const freshKgPerDay = (nominalKgPerDay * reactorRatePct) / 100;
+  return {
+    supplyStatus,
+    reactorRatePct,
+    nominalKgPerDay,
+    freshKgPerDay,
+    deltaVsNominalPct: ((freshKgPerDay - nominalKgPerDay) / nominalKgPerDay) * 100,
+  };
+}
+
 export const MONTH_LABELS: Record<string, string> = {
   Jan: "enero", Feb: "febrero", Mar: "marzo", Apr: "abril", May: "mayo", Jun: "junio",
   Jul: "julio", Aug: "agosto", Sep: "septiembre", Oct: "octubre", Nov: "noviembre", Dec: "diciembre",

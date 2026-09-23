@@ -6,6 +6,7 @@ import {
   computeMassBalance,
   ECONOMIC_CONSTANTS,
   PLANT_REFERENCE,
+  type OperatingPoint,
 } from "../lib/constants";
 
 const CURVE_DATA = Array.from({ length: 51 }, (_, i) => {
@@ -13,26 +14,31 @@ const CURVE_DATA = Array.from({ length: 51 }, (_, i) => {
   return { x, price: Number(breakevenPrice(x).toFixed(2)) };
 });
 
-const MASS = computeMassBalance(
-  PLANT_REFERENCE.freshSargassumKgPerDay,
-  PLANT_REFERENCE.initialMoisturePct,
-  PLANT_REFERENCE.targetMoisturePctStage1,
-  PLANT_REFERENCE.targetMoisturePctStage2
-);
+const massAt = (freshKg: number) =>
+  computeMassBalance(
+    freshKg,
+    PLANT_REFERENCE.initialMoisturePct,
+    PLANT_REFERENCE.targetMoisturePctStage1,
+    PLANT_REFERENCE.targetMoisturePctStage2
+  );
 
 interface EconomicPanelProps {
   /** Temperatura de reactor compartida con el módulo energético (estado en App).
    *  Es la vía real por la que la temperatura toca la economía: cambia el rendimiento
    *  de biochar, que es el producto que se vende. */
   reactorTempC: number;
+  /** Punto de operación del mes: el caudal real determina cuánto biochar sale. */
+  op: OperatingPoint;
 }
 
-export function EconomicPanel({ reactorTempC }: EconomicPanelProps) {
+export function EconomicPanel({ reactorTempC, op }: EconomicPanelProps) {
   const [acquisitionCost, setAcquisitionCost] = useState(2);
   const price = useMemo(() => breakevenPrice(acquisitionCost), [acquisitionCost]);
 
+  const mass = useMemo(() => massAt(op.freshKgPerDay), [op.freshKgPerDay]);
   const biocharYield = biocharYieldInterpolated(reactorTempC);
-  const biocharKgPerDay = biocharYield * MASS.materiaSecaKg;
+  const biocharKgPerDay = biocharYield * mass.materiaSecaKg;
+  const biocharNominalKgPerDay = biocharYield * massAt(op.nominalKgPerDay).materiaSecaKg;
   // Ingreso indicativo al precio base de comparación de Cheatham et al. ($100/t).
   const biocharRevenuePerDay = (biocharKgPerDay / 1000) * ECONOMIC_CONSTANTS.baselineBiocharPriceUSDPerTon;
 
@@ -80,10 +86,22 @@ export function EconomicPanel({ reactorTempC }: EconomicPanelProps) {
 
       <div className="space-y-2 text-sm border-t border-border pt-3 mt-3">
         <p className="text-xs text-text-secondary mb-1">
-          Producto vendible a <span className="text-accent font-data">{reactorTempC}°C</span> (slider del módulo energético)
+          Producto vendible a <span className="text-accent font-data">{reactorTempC}°C</span> con{" "}
+          <span className="text-accent font-data">{op.freshKgPerDay.toFixed(0)} kg/día</span> de entrada
         </p>
         <Row label="Rendimiento de biochar" value={`${(biocharYield * 100).toFixed(1)}%`} />
-        <Row label="Biochar producido" value={`${biocharKgPerDay.toFixed(1)} kg/día`} />
+        <Row
+          label="Biochar producido"
+          value={`${biocharKgPerDay.toFixed(1)} kg/día`}
+          accent={op.reactorRatePct < 100 ? "deficit" : undefined}
+        />
+        {op.reactorRatePct < 100 && (
+          <Row
+            label="Pérdida vs temporada alta"
+            value={`−${(biocharNominalKgPerDay - biocharKgPerDay).toFixed(1)} kg/día`}
+            accent="deficit"
+          />
+        )}
         <Row label={`Ingreso a $${ECONOMIC_CONSTANTS.baselineBiocharPriceUSDPerTon}/t`} value={`$${biocharRevenuePerDay.toFixed(2)}/día`} />
       </div>
 
@@ -98,11 +116,12 @@ export function EconomicPanel({ reactorTempC }: EconomicPanelProps) {
   );
 }
 
-function Row({ label, value, accent }: { label: string; value: string; accent?: "surplus" }) {
+function Row({ label, value, accent }: { label: string; value: string; accent?: "surplus" | "deficit" }) {
+  const color = accent === "surplus" ? "text-surplus" : accent === "deficit" ? "text-deficit" : "text-text-primary";
   return (
     <div className="flex justify-between items-baseline">
       <span className="text-text-secondary">{label}</span>
-      <span className={`font-data ${accent === "surplus" ? "text-surplus" : "text-text-primary"}`}>{value}</span>
+      <span className={`font-data ${color}`}>{value}</span>
     </div>
   );
 }

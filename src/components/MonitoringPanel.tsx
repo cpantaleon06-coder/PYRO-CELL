@@ -11,7 +11,6 @@ import {
   YAxis,
 } from "recharts";
 import {
-  ALL_MONTHS,
   areaToEstimatedTons,
   computeMonitoring,
   MONTH_LABELS,
@@ -21,9 +20,6 @@ import {
 } from "../lib/constants";
 import { REFERENCE_IS_PLACEHOLDER, REFERENCE_SOURCE_LABEL } from "../data/sargassumReference";
 import { StatCard } from "./StatCard";
-
-// Mes actual del sistema (hoy), como default de la posición en la serie.
-const CURRENT_MONTH = ALL_MONTHS[new Date().getMonth()];
 
 const ALERT_META: Record<AlertLevel, { label: string; accent: "surplus" | "energy" | "deficit"; hex: string }> = {
   verde: { label: "Verde", accent: "surplus", hex: "#7cb86b" },
@@ -37,9 +33,14 @@ function fmtTons(t: number): string {
   return `~${t.toFixed(0)} t`;
 }
 
-export function MonitoringPanel() {
+interface MonitoringPanelProps {
+  /** Mes global de simulación (estado en App): el mismo que mueve la estacionalidad,
+   *  para que no haya dos selectores de mes contradiciéndose. */
+  month: string;
+}
+
+export function MonitoringPanel({ month }: MonitoringPanelProps) {
   const [source, setSource] = useState<MonitoringDataSource>("odatis_offline_snapshot");
-  const [month, setMonth] = useState<string>(CURRENT_MONTH);
   const [thresholdKm2, setThresholdKm2] = useState<number>(800);
 
   const series = useMemo(() => monitoringMonthlySeries(source), [source]);
@@ -99,18 +100,6 @@ export function MonitoringPanel() {
           >
             <option value="odatis_offline_snapshot">Histórico real (Odatis)</option>
             <option value="seasonal_projection">Proyección estacional</option>
-          </select>
-        </div>
-        <div>
-          <label className="text-xs text-text-secondary block mb-1">Mes</label>
-          <select
-            value={month}
-            onChange={(e) => setMonth(e.target.value)}
-            className="bg-bg-raised border border-border rounded px-2 py-1.5 text-sm"
-          >
-            {ALL_MONTHS.map((m) => (
-              <option key={m} value={m}>{MONTH_LABELS[m]}</option>
-            ))}
           </select>
         </div>
         <div className="flex-1 min-w-40">
