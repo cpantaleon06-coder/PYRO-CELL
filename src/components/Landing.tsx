@@ -35,6 +35,7 @@ export function Landing({ onEnter }: { onEnter: () => void }) {
       {/* Transición tonal: evita el corte duro entre el bloque oscuro y el claro */}
       <div className="h-48 bg-gradient-to-b from-carbon-soft via-carbon-soft/40 to-paper" aria-hidden />
       <Pipeline />
+      <Platform />
       <Roadmap />
       <FinalCta onEnter={onEnter} />
     </div>
@@ -132,13 +133,13 @@ function Hero({ onEnter }: { onEnter: () => void }) {
           <div className="flex gap-3">
             <a
               href="/planta-3d.html"
-              className="text-sm font-display font-semibold px-4 py-2 rounded-md border border-paper-ink/25 text-paper-ink/90 hover:bg-paper-ink/10 transition-colors"
+              className="text-sm font-display font-semibold px-4 py-2 rounded-none border border-paper-ink/25 text-paper-ink/90 hover:bg-paper-ink/10 transition-colors"
             >
               Planta 3D
             </a>
             <button
               onClick={onEnter}
-              className="text-sm font-display font-semibold px-4 py-2 rounded-md bg-accent-bright text-white hover:opacity-90 transition-opacity"
+              className="text-sm font-display font-semibold px-4 py-2 rounded-none bg-accent-bright text-white hover:opacity-90 transition-opacity"
             >
               Dashboard
             </button>
@@ -168,13 +169,13 @@ function Hero({ onEnter }: { onEnter: () => void }) {
           <div className="lp-rise flex flex-wrap gap-4 mt-12" style={{ animationDelay: "0.3s" }}>
             <button
               onClick={onEnter}
-              className="font-display font-semibold text-sm bg-accent-bright text-white rounded-md px-8 py-4 hover:opacity-90 transition-opacity"
+              className="font-display font-semibold text-sm bg-accent-bright text-white rounded-none px-8 py-4 hover:opacity-90 transition-opacity"
             >
               Explorar la simulación
             </button>
             <a
               href="/planta-3d.html"
-              className="font-display font-semibold text-sm border border-paper-ink/30 text-paper-ink rounded-md px-8 py-4 hover:bg-paper-ink/10 transition-colors"
+              className="font-display font-semibold text-sm border border-paper-ink/30 text-paper-ink rounded-none px-8 py-4 hover:bg-paper-ink/10 transition-colors"
             >
               Ver la planta en 3D
             </a>
@@ -194,7 +195,7 @@ function Hero({ onEnter }: { onEnter: () => void }) {
 
 function Metric({ value, label }: { value: string; label: string }) {
   return (
-    <div className="border-t border-paper-ink/20 pt-4">
+    <div className="border-t-2 border-paper-ink/25 pt-4">
       <p className="font-display font-semibold text-xl text-accent-bright">{value}</p>
       <p className="text-sm text-paper-ink/55 mt-1">{label}</p>
     </div>
@@ -244,7 +245,7 @@ function Problem() {
 
 function Fact({ value, label }: { value: string; label: string }) {
   return (
-    <div className="border-l-2 border-accent-bright/50 pl-6">
+    <div className="border-l-4 border-accent-bright/60 pl-6">
       <p className="font-display font-bold text-2xl text-paper-ink">{value}</p>
       <p className="text-sm text-paper-ink/55 mt-1">{label}</p>
     </div>
@@ -278,7 +279,7 @@ function Mission() {
           </div>
         </div>
 
-        <blockquote className="lp-reveal border-l-2 border-accent-bright pl-6 mt-12 max-w-2xl">
+        <blockquote className="lp-reveal border-l-4 border-accent-bright pl-6 mt-12 max-w-2xl">
           <p className="font-display text-xl md:text-2xl text-paper-ink">
             La autosuficiencia energética no es el objetivo. Es lo que hace sostenible
             proteger el agua.
@@ -314,7 +315,7 @@ function Pipeline() {
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8 mt-12">
           {STAGES.map((s, i) => (
             <div key={s.n} className="lp-reveal" style={{ transitionDelay: `${i * 0.07}s` }}>
-              <div className="h-1 w-10 bg-accent rounded-full" aria-hidden />
+              <div className="h-3 w-3 bg-accent" aria-hidden />
               <p className="text-sm text-accent mt-6">{s.n}</p>
               <h3 className="font-display font-semibold text-lg mt-1">{s.title}</h3>
               <p className="text-sm text-carbon/65 mt-4">{s.text}</p>
@@ -325,11 +326,105 @@ function Pipeline() {
         <div className="lp-reveal mt-12">
           <a
             href="/planta-3d.html"
-            className="inline-block font-display font-semibold text-sm bg-carbon text-paper rounded-md px-8 py-4 hover:opacity-90 transition-opacity"
+            className="inline-block font-display font-semibold text-sm bg-carbon text-paper rounded-none px-8 py-4 hover:opacity-90 transition-opacity"
           >
             Ver estas etapas en el plano 3D
           </a>
         </div>
+      </div>
+    </section>
+  );
+}
+
+/* ---------------------------- Plataforma ---------------------------- */
+
+/** Las cifras llevan el mismo rigor que el resto del proyecto: `kind` distingue
+ *  especificación real de supuesto ilustrativo, y se muestra en la UI. */
+const STREAMS = [
+  {
+    n: "01",
+    title: "Sargazo costero",
+    status: "Simulado y verificado",
+    done: true,
+    text: "Retira la arribazón de la playa antes de que se descomponga y la convierte en biochar, energía y agua tratada.",
+    figures: [
+      { value: "1,500 kg/día", label: "sargazo procesado", kind: "verificado" },
+      { value: "161 kg/día", label: "biochar producido", kind: "verificado" },
+    ],
+  },
+  {
+    n: "02",
+    title: "Río-Limpieza",
+    status: "Diseño nuevo",
+    done: false,
+    text: "Intercepta el plástico en el río antes de que llegue al mar, con una planta en tierra que lo recicla o lo pirolisa.",
+    figures: [
+      { value: "50,000 kg/día", label: "capacidad del interceptor", kind: "spec real" },
+      { value: "35,000 kg/día", label: "fracción plástica (70 %)", kind: "respaldado" },
+      { value: "11,375 kg/día", label: "aceite de pirólisis", kind: "supuesto" },
+    ],
+  },
+] as const;
+
+function Platform() {
+  return (
+    <section className="bg-paper text-carbon py-24 border-t border-carbon/15">
+      <div className="max-w-5xl mx-auto px-6">
+        <Eyebrow text="La plataforma" dark />
+
+        <h2 className="lp-reveal font-display font-bold text-3xl md:text-5xl tracking-tight mt-6 max-w-2xl">
+          Una plataforma, dos corrientes
+        </h2>
+        <p className="lp-reveal text-carbon/65 mt-6 max-w-xl">
+          El mismo principio —retirar la biomasa antes de que contamine— aplicado en dos
+          puntos distintos del ciclo del agua.
+        </p>
+
+        <div className="grid md:grid-cols-2 gap-8 mt-12">
+          {STREAMS.map((st, i) => (
+            <article
+              key={st.n}
+              className="lp-reveal border border-carbon/20 p-8"
+              style={{ transitionDelay: `${i * 0.08}s` }}
+            >
+              <div className="flex items-baseline justify-between gap-4">
+                <span className="font-display font-bold text-2xl text-accent">{st.n}</span>
+                <span
+                  className={`text-xs font-display font-semibold uppercase tracking-[0.12em] px-3 py-1.5 ${
+                    st.done ? "bg-accent text-white" : "border border-carbon/30 text-carbon/60"
+                  }`}
+                >
+                  {st.status}
+                </span>
+              </div>
+
+              <h3 className="font-display font-semibold text-2xl mt-6">{st.title}</h3>
+              <p className="text-carbon/65 mt-4">{st.text}</p>
+
+              <dl className="mt-8 divide-y divide-carbon/12 border-t border-carbon/12">
+                {st.figures.map((f) => (
+                  <div key={f.label} className="flex items-baseline justify-between gap-4 py-3">
+                    <dt className="text-sm text-carbon/60">{f.label}</dt>
+                    <dd className="text-right">
+                      <span className="font-display font-semibold">{f.value}</span>
+                      <span className="block text-xs text-carbon/45 uppercase tracking-[0.1em]">
+                        {f.kind}
+                      </span>
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </article>
+          ))}
+        </div>
+
+        <p className="lp-reveal text-sm text-carbon/55 mt-8 max-w-3xl">
+          Las dimensiones y la capacidad del interceptor son especificación publicada de The
+          Ocean Cleanup. El reparto 50/50 entre reciclaje y pirólisis, y el rendimiento de
+          aceite del 65 %, son supuestos ilustrativos: no hay caracterización real del
+          plástico recolectado. La clasificación regulatoria de la pirólisis de plástico en
+          México está pendiente de verificar.
+        </p>
       </div>
     </section>
   );
@@ -363,8 +458,8 @@ function Roadmap() {
             >
               <div className="md:w-36 shrink-0">
                 <span
-                  className={`inline-block text-sm font-display font-semibold px-3 py-1 rounded-full ${
-                    p.done ? "bg-accent text-white" : "border border-carbon/25 text-carbon/60"
+                  className={`inline-block text-xs font-display font-semibold uppercase tracking-[0.12em] px-3 py-1.5 ${
+                    p.done ? "bg-accent text-white" : "border border-carbon/30 text-carbon/60"
                   }`}
                 >
                   {p.tag}
@@ -388,7 +483,7 @@ function FinalCta({ onEnter }: { onEnter: () => void }) {
   return (
     <section className="bg-paper py-24">
       <div className="max-w-5xl mx-auto px-6">
-        <div className="lp-reveal bg-accent text-white rounded-2xl px-8 py-16 md:px-16">
+        <div className="lp-reveal bg-accent text-white px-8 py-16 md:px-16">
           <h2 className="font-display font-bold text-3xl md:text-4xl tracking-tight max-w-2xl">
             Mueve el mes y mira cómo responde la planta entera.
           </h2>
@@ -399,13 +494,13 @@ function FinalCta({ onEnter }: { onEnter: () => void }) {
           <div className="flex flex-wrap gap-4 mt-12">
             <button
               onClick={onEnter}
-              className="font-display font-semibold text-sm bg-white text-accent rounded-md px-8 py-4 hover:opacity-90 transition-opacity"
+              className="font-display font-semibold text-sm bg-white text-accent rounded-none px-8 py-4 hover:opacity-90 transition-opacity"
             >
               Entrar al dashboard
             </button>
             <a
               href="/planta-3d.html"
-              className="font-display font-semibold text-sm border border-white/50 text-white rounded-md px-8 py-4 hover:bg-white/10 transition-colors"
+              className="font-display font-semibold text-sm border border-white/50 text-white rounded-none px-8 py-4 hover:bg-white/10 transition-colors"
             >
               Ver la planta en 3D
             </a>
@@ -424,12 +519,15 @@ function FinalCta({ onEnter }: { onEnter: () => void }) {
 
 function Eyebrow({ text, dark }: { text: string; dark?: boolean }) {
   return (
-    <p
-      className={`lp-reveal text-sm tracking-[0.18em] ${
-        dark ? "text-accent" : "text-accent-bright"
-      }`}
-    >
-      {text}
-    </p>
+    <div className="lp-reveal flex items-center gap-3">
+      <span className={`h-2.5 w-2.5 ${dark ? "bg-accent" : "bg-accent-bright"}`} aria-hidden />
+      <p
+        className={`text-xs font-display font-semibold uppercase tracking-[0.22em] ${
+          dark ? "text-accent" : "text-accent-bright"
+        }`}
+      >
+        {text}
+      </p>
+    </div>
   );
 }
