@@ -1,4 +1,24 @@
 import { useEffect, useRef, type ReactNode } from "react";
+import {
+  biocharYieldInterpolated,
+  computeMassBalance,
+  ENERGY_CONSTANTS,
+  PLANT_REFERENCE,
+  pyrolysisHeatAtDesignTemp,
+} from "../lib/constants";
+
+// Las cifras del hero y de la corriente 01 se derivan del mismo modulo de constantes que
+// usa el dashboard, para que no puedan quedar desfasadas si cambia un valor de diseno.
+const MASS = computeMassBalance(
+  PLANT_REFERENCE.freshSargassumKgPerDay,
+  PLANT_REFERENCE.initialMoisturePct,
+  PLANT_REFERENCE.targetMoisturePctStage1,
+  PLANT_REFERENCE.targetMoisturePctStage2
+);
+const DESIGN_T = ENERGY_CONSTANTS.reactorDesignTempC;
+const FRESH_KG = PLANT_REFERENCE.freshSargassumKgPerDay.toLocaleString("es-MX");
+const BIOCHAR_KG = (biocharYieldInterpolated(DESIGN_T) * MASS.materiaSecaKg).toFixed(0);
+const SURPLUS_MJ = (ENERGY_CONSTANTS.syngasBiocrudeYield - pyrolysisHeatAtDesignTemp(DESIGN_T)).toFixed(2);
 
 /** Landing de contexto: qué es PYRO-CELL, el problema, la misión y por dónde empezamos.
  *  Va antes del dashboard y del plano 3D para darles marco.
@@ -28,7 +48,7 @@ export function Landing({ onEnter }: { onEnter: () => void }) {
   }, []);
 
   return (
-    <div ref={rootRef} className="bg-carbon text-paper-ink">
+    <main ref={rootRef} className="bg-carbon text-paper-ink">
       <Hero onEnter={onEnter} />
       <Problem />
       <Mission />
@@ -38,7 +58,7 @@ export function Landing({ onEnter }: { onEnter: () => void }) {
       <Platform />
       <Roadmap />
       <FinalCta onEnter={onEnter} />
-    </div>
+    </main>
   );
 }
 
@@ -126,11 +146,11 @@ function Hero({ onEnter }: { onEnter: () => void }) {
       <OrganicHeader />
 
       <div className="relative z-10 max-w-5xl mx-auto px-6 py-8 min-h-screen flex flex-col">
-        <nav className="flex items-center justify-between gap-6">
+        <header className="flex items-center justify-between gap-6">
           <span className="font-display font-semibold text-sm tracking-[0.2em] text-accent-bright">
             PYRO-CELL
           </span>
-          <div className="flex gap-3">
+          <nav className="flex gap-3">
             <a
               href="/planta-3d.html"
               className="text-sm font-display font-semibold px-4 py-2 rounded-none border border-paper-ink/25 text-paper-ink/90 hover:bg-paper-ink/10 transition-colors"
@@ -143,8 +163,8 @@ function Hero({ onEnter }: { onEnter: () => void }) {
             >
               Dashboard
             </button>
-          </div>
-        </nav>
+          </nav>
+        </header>
 
         <div className="flex-1 flex flex-col justify-center py-24">
           <p className="lp-rise text-sm tracking-[0.18em] text-accent-bright">
@@ -183,9 +203,9 @@ function Hero({ onEnter }: { onEnter: () => void }) {
         </div>
 
         <div className="lp-rise grid grid-cols-2 md:grid-cols-4 gap-8" style={{ animationDelay: "0.4s" }}>
-          <Metric value="1,500 kg" label="sargazo procesado al día" />
-          <Metric value="161 kg" label="biochar producido al día" />
-          <Metric value="+2.30 MJ/kg" label="superávit energético" />
+          <Metric value={`${FRESH_KG} kg`} label="sargazo procesado al día" />
+          <Metric value={`${BIOCHAR_KG} kg`} label="biochar producido al día" />
+          <Metric value={`+${SURPLUS_MJ} MJ/kg`} label="superávit energético" />
           <Metric value="2023–2025" label="datos satelitales reales" />
         </div>
       </div>
@@ -348,8 +368,8 @@ const STREAMS = [
     done: true,
     text: "Retira la arribazón de la playa antes de que se descomponga y la convierte en biochar, energía y agua tratada.",
     figures: [
-      { value: "1,500 kg/día", label: "sargazo procesado", kind: "verificado" },
-      { value: "161 kg/día", label: "biochar producido", kind: "verificado" },
+      { value: `${FRESH_KG} kg/día`, label: "sargazo procesado", kind: "verificado" },
+      { value: `${BIOCHAR_KG} kg/día`, label: "biochar producido", kind: "verificado" },
     ],
   },
   {
@@ -364,7 +384,7 @@ const STREAMS = [
       { value: "11,375 kg/día", label: "aceite de pirólisis", kind: "supuesto" },
     ],
   },
-] as const;
+];
 
 function Platform() {
   return (
@@ -407,7 +427,7 @@ function Platform() {
                     <dt className="text-sm text-carbon/60">{f.label}</dt>
                     <dd className="text-right">
                       <span className="font-display font-semibold">{f.value}</span>
-                      <span className="block text-xs text-carbon/45 uppercase tracking-[0.1em]">
+                      <span className="block text-xs text-carbon/70 uppercase tracking-[0.1em]">
                         {f.kind}
                       </span>
                     </dd>
@@ -418,7 +438,7 @@ function Platform() {
           ))}
         </div>
 
-        <p className="lp-reveal text-sm text-carbon/55 mt-8 max-w-3xl">
+        <p className="lp-reveal text-sm text-carbon/70 mt-8 max-w-3xl">
           Las dimensiones y la capacidad del interceptor son especificación publicada de The
           Ocean Cleanup. El reparto 50/50 entre reciclaje y pirólisis, y el rendimiento de
           aceite del 65 %, son supuestos ilustrativos: no hay caracterización real del
@@ -507,9 +527,19 @@ function FinalCta({ onEnter }: { onEnter: () => void }) {
           </div>
         </div>
 
-        <p className="lp-reveal text-sm text-carbon/45 mt-12">
-          PYRO-CELL · OneAquaHealth IEEE Global Hackathon 2026
-        </p>
+        <footer className="lp-reveal flex flex-wrap items-center justify-between gap-4 mt-12">
+          <p className="text-sm text-carbon/70">
+            PYRO-CELL · OneAquaHealth IEEE Global Hackathon 2026
+          </p>
+          <a
+            href="https://github.com/cpantaleon06-coder/PYRO-CELL"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm font-display font-semibold text-accent underline underline-offset-4 hover:opacity-80 transition-opacity"
+          >
+            Código en GitHub
+          </a>
+        </footer>
       </div>
     </section>
   );

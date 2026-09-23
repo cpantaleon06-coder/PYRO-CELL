@@ -30,7 +30,7 @@ export function Dashboard({ onBack }: { onBack: () => void }) {
   );
 
   return (
-    <div className="min-h-screen bg-bg-deep text-text-primary font-body px-6 py-8 max-w-5xl mx-auto">
+    <main className="min-h-screen bg-bg-deep text-text-primary font-body px-6 py-8 max-w-5xl mx-auto">
       <header className="mb-6 flex items-start justify-between gap-4 flex-wrap">
         <div>
           <button
@@ -74,6 +74,6 @@ export function Dashboard({ onBack }: { onBack: () => void }) {
       <MonitoringPanel month={month} />
 
       <ValidationPanel />
-    </div>
+    </main>
   );
 }

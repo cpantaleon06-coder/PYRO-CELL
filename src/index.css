@@ -53,6 +53,17 @@ h1, h2, h3 {
   line-height: 1.15;
 }
 
+/* Foco visible de teclado. Va como regla global en vez de clase por elemento para que
+   ningun interactivo quede sin el. Se usa el cobalto luminoso porque es el unico que
+   se lee bien tanto sobre papel como sobre carbon. */
+:focus-visible {
+  /* Color literal a proposito: dentro del shorthand, var() se resolvia a currentColor
+     y el anillo salia del color del texto en vez de cobalto. Coincide con --color-accent-bright. */
+  outline: 2px solid #3f6dff;
+  outline-offset: 3px;
+  border-radius: 1px;
+}
+
 /* ================= Landing ================= */
 
 /* Deriva organica de las capas del header: lenta, con desfase entre capas */

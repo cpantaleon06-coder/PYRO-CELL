@@ -2,7 +2,7 @@
 
 **A digital simulation of a coastal circular-economy pipeline that turns Sargassum seaweed into biochar, energy, and clean water, while protecting the aquatic ecosystems the OneAquaHealth mission exists to defend.**
 
-![PYRO-CELL dashboard](./dashboard-screenshot.png)
+![PYRO-CELL dashboard](./public/dashboard-screenshot.png)
 
 ## Inspiration
 
