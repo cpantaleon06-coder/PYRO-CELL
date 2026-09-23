@@ -24,6 +24,50 @@ PYRO-CELL is a client-side simulation dashboard, not a physical prototype, that 
 - **Resilience monitoring (Track 6)**: a two-layer hybrid, a real offline snapshot of Météo-France/CNRM satellite Sargassum detection data (Odatis, DOI 10.12770/1eb82d09) calibrated against a seasonal projection layer. No live network dependency, so the demo can never fail from an external outage, and the UI always labels which layer produced the number on screen.
 - **AI-assisted validation (Track 3)**: a Vercel Edge Function that evaluates simulated citizen observations of Sargassum sightings using Groq (an open-weight model, since the team does not have Claude API access), with structured-output reasoning, deterministic pre-checks, and a human-in-the-loop review flag whenever confidence is low or an anomaly is detected. This is explainable AI in the literal sense the track asks for, not a black-box classifier.
 
+## The platform: three streams
+
+PYRO-CELL applies one principle in three places: **remove the biomass before it decomposes, and pay for the removal with what it yields.** Only the first stream is fully modelled; the other two are stated at the level of confidence they actually have.
+
+### Stream 01 — Coastal Sargassum *(simulated and verified)*
+
+Pelagic Sargassum is intercepted on the Quintana Roo shoreline and converted into biochar, syngas, bio-oil and a candidate water-treatment product. This is the stream the dashboard simulates end to end.
+
+| Figure | Value | Basis |
+| --- | --- | --- |
+| Fresh Sargassum processed | 1,500 kg/day at 82 % moisture | Cheatham et al. (2026) |
+| Water removed, stage 1 | 825 kg/day | Mass balance |
+| Conditioned feedstock to reactor | 337.5 kg/day at 20 % moisture | Mass balance |
+| Biochar produced | 161.3 kg/day | **Own interpolation** between Milledge (67.6 % at 400 °C) and Cheatham (51.91 % at 600 °C) |
+| Pyrolysis energy surplus | +2.30 MJ/kg | Milledge et al. (2015), extrapolated from 400 °C |
+| Seasonal buffer | 16.5 t / 82.7 m³ / 49 days | **Own design decision** |
+
+Plant layout: [`plano.m`](./plano.m), rendered interactively at `/planta-3d.html`.
+
+### Stream 02 — River-Limpieza *(new design)*
+
+A river interceptor stops plastic before it reaches the ocean, feeding a shore facility that either mechanically recycles it or pyrolyses it into oil. A separate reactor from the Sargassum line, because the chemistry is different.
+
+![River interceptor](./public/interceptor-rio.png)
+![Shore processing facility](./public/planta-rio.png)
+
+| Figure | Value | Basis |
+| --- | --- | --- |
+| Interceptor capacity | 50,000 kg/day | **Real spec**, The Ocean Cleanup Interceptor Original |
+| Hull dimensions | 8 × 24 × 5 m, 100 % solar + Li-ion battery | **Real spec** |
+| Barge | 6 containers, 50 m³ | **Real spec** |
+| Plastic fraction of floating debris | 70 % → 35,000 kg/day | **Supported**: Benioff Ocean Science Lab (66 %) and Krueng Aceh river study (77.8 %), rounded down conservatively |
+| Mechanical / pyrolysis split | 50 / 50 → 17,500 kg/day each | **Illustrative assumption**, no characterisation of the collected plastic |
+| Pyrolysis oil yield | 65 % → 11,375 kg/day | **Assumption**, typical literature figure, not measured here |
+| Non-plastic fraction | 30 % → 15,000 kg/day | To external waste management |
+
+**Open item:** plastic pyrolysis needs off-gas treatment, and its regulatory classification in Mexico is still unverified. Model: [`rio-limpieza.m`](./rio-limpieza.m).
+
+### Stream 03 — Organic waste *(concept)*
+
+Anaerobic digestion and composting for the organic fraction that currently ends up in landfill, where its leachate threatens the same karst aquifer the coast drinks from.
+
+**Not dimensioned.** There is no volume characterisation, no mass balance and no model for this stream yet. It is listed because it completes the platform logic, not because it has been engineered. Any figure here would be invented, so none is given.
+
 ## How we built it
 
 Frontend is React + Vite + TypeScript + Tailwind v4 + Recharts, deployed to Vercel. All physical and economic constants live in one typed module (`src/lib/constants.ts`), each with a source comment, so the UI can never silently drift from the research behind it.

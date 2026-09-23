@@ -384,6 +384,15 @@ const STREAMS = [
       { value: "11,375 kg/día", label: "aceite de pirólisis", kind: "supuesto" },
     ],
   },
+  {
+    n: "03",
+    title: "Residuos orgánicos",
+    status: "Concepto",
+    done: false,
+    text: "Digestión anaerobia y composta para la materia orgánica que hoy acaba en relleno sanitario, donde su lixiviado amenaza el mismo acuífero del que bebe la costa.",
+    figures: [],
+    note: "Sin dimensionar: todavía no hay caracterización de volúmenes ni balance de masa para esta corriente.",
+  },
 ];
 
 function Platform() {
@@ -393,14 +402,14 @@ function Platform() {
         <Eyebrow text="La plataforma" dark />
 
         <h2 className="lp-reveal font-display font-bold text-3xl md:text-5xl tracking-tight mt-6 max-w-2xl">
-          Una plataforma, dos corrientes
+          Una plataforma, tres corrientes
         </h2>
         <p className="lp-reveal text-carbon/65 mt-6 max-w-xl">
-          El mismo principio —retirar la biomasa antes de que contamine— aplicado en dos
+          El mismo principio —retirar la biomasa antes de que contamine— aplicado en tres
           puntos distintos del ciclo del agua.
         </p>
 
-        <div className="grid md:grid-cols-2 gap-8 mt-12">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8 mt-12">
           {STREAMS.map((st, i) => (
             <article
               key={st.n}
@@ -421,21 +430,56 @@ function Platform() {
               <h3 className="font-display font-semibold text-2xl mt-6">{st.title}</h3>
               <p className="text-carbon/65 mt-4">{st.text}</p>
 
-              <dl className="mt-8 divide-y divide-carbon/12 border-t border-carbon/12">
-                {st.figures.map((f) => (
-                  <div key={f.label} className="flex items-baseline justify-between gap-4 py-3">
-                    <dt className="text-sm text-carbon/60">{f.label}</dt>
-                    <dd className="text-right">
-                      <span className="font-display font-semibold">{f.value}</span>
-                      <span className="block text-xs text-carbon/70 uppercase tracking-[0.1em]">
-                        {f.kind}
-                      </span>
-                    </dd>
-                  </div>
-                ))}
-              </dl>
+              {st.figures.length > 0 ? (
+                <dl className="mt-8 divide-y divide-carbon/12 border-t border-carbon/12">
+                  {st.figures.map((f) => (
+                    <div key={f.label} className="flex items-baseline justify-between gap-4 py-3">
+                      <dt className="text-sm text-carbon/60">{f.label}</dt>
+                      <dd className="text-right">
+                        <span className="font-display font-semibold">{f.value}</span>
+                        <span className="block text-xs text-carbon/70 uppercase tracking-[0.1em]">
+                          {f.kind}
+                        </span>
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              ) : (
+                <p className="mt-8 border-t border-carbon/12 pt-4 text-sm text-carbon/70">
+                  {"note" in st ? st.note : null}
+                </p>
+              )}
             </article>
           ))}
+        </div>
+
+        <div className="lp-reveal grid sm:grid-cols-2 gap-8 mt-12">
+          <figure>
+            <img
+              src="/interceptor-rio.png"
+              alt="Vista 3D del interceptor fluvial: casco de 8 por 24 por 5 metros, barrera angulada que cubre la mitad del río y barcaza de seis contenedores."
+              width={1298}
+              height={713}
+              loading="lazy"
+              className="w-full border border-carbon/20 bg-carbon"
+            />
+            <figcaption className="text-sm text-carbon/70 mt-3">
+              Interceptor fluvial · 8 × 24 × 5 m, barrera sobre la mitad del cauce
+            </figcaption>
+          </figure>
+          <figure>
+            <img
+              src="/planta-rio.png"
+              alt="Vista 3D de la planta en tierra: recepción y clasificación, línea de reciclaje mecánico, reactor de pirólisis de plástico y tratamiento de gases."
+              width={1233}
+              height={713}
+              loading="lazy"
+              className="w-full border border-carbon/20 bg-carbon"
+            />
+            <figcaption className="text-sm text-carbon/70 mt-3">
+              Planta en tierra · clasificación, reciclaje mecánico y pirólisis
+            </figcaption>
+          </figure>
         </div>
 
         <p className="lp-reveal text-sm text-carbon/70 mt-8 max-w-3xl">
