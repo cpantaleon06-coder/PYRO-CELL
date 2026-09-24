@@ -130,8 +130,13 @@ function buildPrompt(input: CitizenObservationInput, deterministic: string[], la
     deterministic.length > 0
       ? `Chequeos automáticos previos detectaron: ${deterministic.join(" ")}`
       : "Chequeos automáticos previos no detectaron anomalías obvias.",
+    // Esos chequeos se agregan tal cual al resultado final: si el modelo los repite con
+    // otras palabras, el usuario ve la misma anomalía dos veces.
+    "Esos chequeos automáticos YA se incluyen en el resultado final: tómalos en cuenta para",
+    "tu confianza y tu razonamiento, pero NO los repitas en anomalyFlags.",
     "",
-    "Devuelve tu evaluación con: confidenceScore (0 a 1), anomalyFlags (lista de cadenas, vacía si no hay),",
+    "Devuelve tu evaluación con: confidenceScore (0 a 1), anomalyFlags (solo anomalías ADICIONALES",
+    "a los chequeos automáticos; lista vacía si no hay),",
     "explanation (2-3 frases en lenguaje llano, sin jerga), reasoning (tu razonamiento paso a paso),",
     "y humanReviewRequired (true si confidenceScore < 0.6 o hay anomalías).",
     "",
