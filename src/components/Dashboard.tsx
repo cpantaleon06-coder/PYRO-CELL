@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { useI18n } from "../i18n/context";
+import { LangSwitch } from "./LangSwitch";
 import { EconomicPanel } from "./EconomicPanel";
 import { EnergyPanel } from "./EnergyPanel";
 import { MonitoringPanel } from "./MonitoringPanel";
@@ -19,6 +21,7 @@ export function Dashboard({ onBack }: { onBack: () => void }) {
   // Estado global de simulación. El mes y el colchón mandan sobre TODOS los módulos
   // (antes el mes vivía dentro de la barra de estacionalidad y no salía de ahí, y el
   // panel de monitoreo tenía un segundo selector de mes que lo contradecía).
+  const { t } = useI18n();
   const [month, setMonth] = useState("Sep");
   const [bufferLevelKg, setBufferLevelKg] = useState<number>(SEASONALITY_CONSTANTS.bufferTargetKg);
   const [reactorTempC, setReactorTempC] = useState<number>(ENERGY_CONSTANTS.reactorDesignTempC);
@@ -37,23 +40,26 @@ export function Dashboard({ onBack }: { onBack: () => void }) {
             onClick={onBack}
             className="text-xs text-text-secondary hover:text-accent transition-colors mb-2"
           >
-            ← Volver al inicio
+            {t.dash.back}
           </button>
-          <h1 className="font-display font-semibold text-xl">Valorización de sargazo mediante pirólisis</h1>
+          <h1 className="font-display font-semibold text-xl">{t.dash.title}</h1>
           <p className="text-sm text-text-secondary mt-1">
-            Simulación digital — OneAquaHealth IEEE Global Hackathon 2026
+            {t.dash.subtitle}
           </p>
         </div>
         {/* Plano 3D de la planta: página estática en public/, se abre aparte para no
             competir con el dashboard ni cargar Three.js en el bundle principal. */}
-        <a
-          href="/planta-3d.html"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="shrink-0 bg-accent text-white font-display font-semibold text-sm rounded px-4 py-2 hover:opacity-90 transition-opacity"
-        >
-          Ver planta en 3D →
-        </a>
+        <div className="shrink-0 flex items-center gap-3 flex-wrap">
+          <LangSwitch tone="light" />
+          <a
+            href="/planta-3d.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="bg-accent text-white font-display font-semibold text-sm rounded px-4 py-2 hover:opacity-90 transition-opacity"
+          >
+            {t.dash.view3d}
+          </a>
+        </div>
       </header>
 
       <SeasonalityBar

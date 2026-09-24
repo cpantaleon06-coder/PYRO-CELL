@@ -1,4 +1,6 @@
-import { ALL_MONTHS, MONTH_LABELS, SEASONALITY_CONSTANTS, type OperatingPoint } from "../lib/constants";
+import { useI18n } from "../i18n/context";
+import { f } from "../i18n/format";
+import { ALL_MONTHS, SEASONALITY_CONSTANTS, type OperatingPoint } from "../lib/constants";
 import { StatCard } from "./StatCard";
 
 interface Props {
@@ -10,53 +12,65 @@ interface Props {
 }
 
 export function SeasonalityBar({ month, onMonthChange, bufferLevelKg, onBufferChange, op }: Props) {
-  const statusLabel = { alta: "Alta", baja: "Baja", transicion: "Transición" }[op.supplyStatus];
+  const { t, n, p, month: monthName } = useI18n();
+  const s = t.dash.season;
+
   const statusAccent = op.supplyStatus === "alta" ? "surplus" : op.supplyStatus === "baja" ? "deficit" : "energy";
   const bufferPct = (bufferLevelKg / SEASONALITY_CONSTANTS.bufferTargetKg) * 100;
+  const nominal = op.reactorRatePct >= 100;
 
   return (
     <div className="mb-4">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-        <StatCard label="Estado de temporada" value={statusLabel} accent={statusAccent} sublabel={MONTH_LABELS[month]} />
         <StatCard
-          label="Colchón de reserva"
-          value={`${(bufferLevelKg / 1000).toFixed(1)} t`}
+          label={s.stateLabel}
+          value={s.status[op.supplyStatus]}
+          accent={statusAccent}
+          sublabel={monthName(month)}
+        />
+        <StatCard
+          label={s.bufferLabel}
+          value={`${n(bufferLevelKg / 1000, 1)} t`}
           accent={bufferPct < 25 ? "deficit" : bufferPct > 90 ? "surplus" : "energy"}
-          sublabel={`${bufferPct.toFixed(0)}% de ${(SEASONALITY_CONSTANTS.bufferTargetKg / 1000).toFixed(1)} t`}
+          sublabel={f(s.bufferSub, p(bufferPct), n(SEASONALITY_CONSTANTS.bufferTargetKg / 1000, 1))}
         />
         <StatCard
-          label="Ritmo del reactor"
-          value={`${op.reactorRatePct.toFixed(0)}%`}
-          accent={op.reactorRatePct >= 100 ? "surplus" : op.reactorRatePct < 50 ? "deficit" : "energy"}
-          sublabel={op.reactorRatePct >= 100 ? "ritmo nominal" : "operación reducida"}
+          label={s.rateLabel}
+          value={p(op.reactorRatePct)}
+          accent={nominal ? "surplus" : op.reactorRatePct < 50 ? "deficit" : "energy"}
+          sublabel={nominal ? s.rateNominal : s.rateReduced}
         />
         <StatCard
-          label="Caudal procesado"
-          value={`${op.freshKgPerDay.toFixed(0)} kg/día`}
-          accent={op.reactorRatePct >= 100 ? "neutral" : "deficit"}
+          label={s.flowLabel}
+          value={`${n(op.freshKgPerDay)} ${t.dash.kgDay}`}
+          accent={nominal ? "neutral" : "deficit"}
           sublabel={
-            op.reactorRatePct >= 100
-              ? `de ${op.nominalKgPerDay.toFixed(0)} kg nominales`
-              : `${op.deltaVsNominalPct.toFixed(0)}% vs nominal`
+            nominal ? f(s.flowNominalSub, n(op.nominalKgPerDay)) : f(s.flowDeltaSub, p(op.deltaVsNominalPct))
           }
         />
       </div>
 
       <div className="bg-bg-panel border border-border rounded-lg px-5 py-3 flex items-center gap-4 flex-wrap">
-        <label className="text-xs text-text-secondary shrink-0">Simular mes:</label>
+        <label htmlFor="sim-month" className="text-xs text-text-secondary shrink-0">
+          {s.simMonth}
+        </label>
         <select
+          id="sim-month"
           value={month}
           onChange={(e) => onMonthChange(e.target.value)}
           className="bg-bg-raised border border-border rounded px-2 py-1 text-sm"
         >
           {ALL_MONTHS.map((m) => (
-            <option key={m} value={m}>{MONTH_LABELS[m]}</option>
+            <option key={m} value={m}>
+              {monthName(m)}
+            </option>
           ))}
         </select>
-        <label className="text-xs text-text-secondary shrink-0 ml-2">
-          Nivel de colchón: <span className="text-accent font-data">{(bufferLevelKg / 1000).toFixed(1)} t</span>
+        <label htmlFor="sim-buffer" className="text-xs text-text-secondary shrink-0 ml-2">
+          {s.bufferLevel} <span className="text-accent font-data">{n(bufferLevelKg / 1000, 1)} t</span>
         </label>
         <input
+          id="sim-buffer"
           type="range"
           min={0}
           max={SEASONALITY_CONSTANTS.bufferTargetKg}

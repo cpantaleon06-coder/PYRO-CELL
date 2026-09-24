@@ -20,6 +20,7 @@ import {
   type CitizenObservationInput,
   type Morphotype,
 } from "../src/lib/constants";
+import { isLang, type Lang } from "../src/lib/lang";
 
 export const config = { runtime: "edge" };
 
@@ -28,6 +29,54 @@ const GROQ_BASE_URL = "https://api.groq.com/openai/v1";
 // para esta clave; gpt-oss-120b es el modelo de razonamiento más capaz disponible aquí).
 const GROQ_MODEL = "openai/gpt-oss-120b";
 const VALID_MORPHOTYPES: Morphotype[] = ["S_natans_I", "S_natans_VIII", "S_fluitans_III", "unknown"];
+
+/** Idioma en que el modelo debe redactar su salida (el prompt sigue en español). */
+const OUTPUT_LANGUAGE: Record<Lang, string> = {
+  es: "español",
+  en: "inglés (English)",
+  fr: "francés (français)",
+  pt: "portugués de Brasil (português do Brasil)",
+};
+
+/** Mensajes que el usuario sí puede llegar a ver desde el formulario. */
+const MSG: Record<
+  Lang,
+  { invalid: string; unreachable: string; noExplanation: string; unparseableFlag: string; unparseable: string }
+> = {
+  es: {
+    invalid: "Faltan campos requeridos o son inválidos (descripción, tonelaje, latitud/longitud).",
+    unreachable: "No se pudo contactar al modelo de Groq.",
+    noExplanation: "El modelo no entregó una explicación; se marca para revisión humana.",
+    unparseableFlag: "El modelo devolvió una respuesta no interpretable como JSON.",
+    unparseable: "No se pudo interpretar la respuesta del modelo; la observación queda para revisión humana.",
+  },
+  en: {
+    invalid: "Required fields are missing or invalid (description, tonnage, latitude/longitude).",
+    unreachable: "Could not reach the Groq model.",
+    noExplanation: "The model returned no explanation; flagged for human review.",
+    unparseableFlag: "The model returned a response that could not be read as JSON.",
+    unparseable: "The model's response could not be interpreted; the observation is left for human review.",
+  },
+  fr: {
+    invalid: "Des champs requis sont manquants ou invalides (description, tonnage, latitude/longitude).",
+    unreachable: "Impossible de joindre le modèle Groq.",
+    noExplanation: "Le modèle n'a fourni aucune explication ; signalé pour révision humaine.",
+    unparseableFlag: "Le modèle a renvoyé une réponse illisible en JSON.",
+    unparseable: "La réponse du modèle n'a pas pu être interprétée ; l'observation est laissée à une révision humaine.",
+  },
+  pt: {
+    invalid: "Campos obrigatórios ausentes ou inválidos (descrição, tonelagem, latitude/longitude).",
+    unreachable: "Não foi possível contatar o modelo do Groq.",
+    noExplanation: "O modelo não forneceu explicação; marcado para revisão humana.",
+    unparseableFlag: "O modelo devolveu uma resposta que não pôde ser lida como JSON.",
+    unparseable: "Não foi possível interpretar a resposta do modelo; a observação fica para revisão humana.",
+  },
+};
+
+function parseLang(raw: unknown): Lang {
+  const v = raw && typeof raw === "object" ? (raw as Record<string, unknown>).lang : undefined;
+  return isLang(v) ? v : "es";
+}
 
 function json(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {
@@ -58,7 +107,7 @@ function parseInput(raw: unknown): CitizenObservationInput | null {
   };
 }
 
-function buildPrompt(input: CitizenObservationInput, deterministic: string[]): string {
+function buildPrompt(input: CitizenObservationInput, deterministic: string[], lang: Lang): string {
   const inZone = isWithinSargassumZone(input.gpsLocation.lat, input.gpsLocation.lng);
   return [
     "Eres un validador experto de observaciones ciudadanas de arribazón de sargazo pelágico",
@@ -83,8 +132,10 @@ function buildPrompt(input: CitizenObservationInput, deterministic: string[]): s
       : "Chequeos automáticos previos no detectaron anomalías obvias.",
     "",
     "Devuelve tu evaluación con: confidenceScore (0 a 1), anomalyFlags (lista de cadenas, vacía si no hay),",
-    "explanation (2-3 frases en español llano, sin jerga), reasoning (tu razonamiento paso a paso),",
+    "explanation (2-3 frases en lenguaje llano, sin jerga), reasoning (tu razonamiento paso a paso),",
     "y humanReviewRequired (true si confidenceScore < 0.6 o hay anomalías).",
+    "",
+    `IDIOMA DE SALIDA: redacta explanation, reasoning y cada elemento de anomalyFlags en ${OUTPUT_LANGUAGE[lang]}.`,
   ].join("\n");
 }
 
@@ -101,7 +152,7 @@ const outputSchema = jsonSchema<{
   properties: {
     confidenceScore: { type: "number", minimum: 0, maximum: 1, description: "Confianza de que la observación es consistente (0 a 1)." },
     anomalyFlags: { type: "array", items: { type: "string" }, description: "Anomalías detectadas; vacío si no hay." },
-    explanation: { type: "string", description: "Explicación breve en español llano." },
+    explanation: { type: "string", description: "Explicación breve en lenguaje llano, en el idioma pedido." },
     reasoning: { type: "string", description: "Razonamiento paso a paso." },
     humanReviewRequired: { type: "boolean" },
   },
@@ -109,7 +160,7 @@ const outputSchema = jsonSchema<{
 
 /** Fusiona la salida cruda del modelo con los chequeos deterministas y aplica la regla
  *  de negocio de humanReviewRequired (confianza < 0.6 O cualquier anomalía). */
-function normalize(raw: Partial<AIValidationOutput>, deterministic: string[]): AIValidationOutput {
+function normalize(raw: Partial<AIValidationOutput>, deterministic: string[], lang: Lang): AIValidationOutput {
   const rawScore = Number(raw.confidenceScore);
   const confidenceScore = Number.isFinite(rawScore) ? Math.max(0, Math.min(1, rawScore)) : 0;
   const modelFlags = Array.isArray(raw.anomalyFlags) ? raw.anomalyFlags.filter((f) => typeof f === "string") : [];
@@ -117,7 +168,7 @@ function normalize(raw: Partial<AIValidationOutput>, deterministic: string[]): A
   const anomalyFlags = Array.from(new Set([...deterministic, ...modelFlags]));
   const explanation = typeof raw.explanation === "string" && raw.explanation.trim() !== ""
     ? raw.explanation.trim()
-    : "El modelo no entregó una explicación; se marca para revisión humana.";
+    : MSG[lang].noExplanation;
   return {
     confidenceScore,
     anomalyFlags,
@@ -158,20 +209,21 @@ export default async function handler(req: Request): Promise<Response> {
     return json({ error: "Cuerpo JSON inválido." }, 400);
   }
 
+  const lang = parseLang(body);
   const input = parseInput(body);
   if (!input) {
-    return json({ error: "Faltan campos requeridos o son inválidos (photoDescription, estimatedTonnage, gpsLocation.lat/lng)." }, 422);
+    return json({ error: MSG[lang].invalid }, 422);
   }
 
-  const deterministic = deterministicAnomalyFlags(input);
+  const deterministic = deterministicAnomalyFlags(input, lang);
   const groq = createOpenAICompatible({ name: "groq", baseURL: GROQ_BASE_URL, apiKey });
   const model = groq.chatModel(GROQ_MODEL);
-  const prompt = buildPrompt(input, deterministic);
+  const prompt = buildPrompt(input, deterministic, lang);
 
   // Intento 1: salida estructurada del SDK (JSON mode / structured outputs).
   try {
     const { object } = await generateObject({ model, schema: outputSchema, prompt, temperature: 0.2 });
-    return json(normalize(object, deterministic), 200);
+    return json(normalize(object, deterministic, lang), 200);
   } catch {
     // Intento 2: texto libre + parseo manual con validación.
     try {
@@ -182,22 +234,23 @@ export default async function handler(req: Request): Promise<Response> {
       });
       const parsed = extractJson(text);
       if (parsed) {
-        return json(normalize(parsed, deterministic), 200);
+        return json(normalize(parsed, deterministic, lang), 200);
       }
       // JSON mal formado: fallback seguro a revisión humana.
       return json(
         normalize(
           {
             confidenceScore: 0,
-            anomalyFlags: ["El modelo devolvió una respuesta no interpretable como JSON."],
-            explanation: "No se pudo interpretar la respuesta del modelo; la observación queda para revisión humana.",
+            anomalyFlags: [MSG[lang].unparseableFlag],
+            explanation: MSG[lang].unparseable,
           },
-          deterministic
+          deterministic,
+          lang
         ),
         200
       );
     } catch (err) {
-      return json({ error: "No se pudo contactar al modelo de Groq.", detail: String(err) }, 502);
+      return json({ error: MSG[lang].unreachable, detail: String(err) }, 502);
     }
   }
 }

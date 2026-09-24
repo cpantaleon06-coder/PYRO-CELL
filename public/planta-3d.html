@@ -20,7 +20,13 @@
   #title h1{margin:0;font-family:"Space Grotesk",sans-serif;font-size:20px;font-weight:600}
   #title p{margin:4px 0 0;font-size:12px;color:var(--muted)}
 
-  #controls{position:absolute;top:24px;right:28px;display:flex;gap:8px}
+  #controls{position:absolute;top:24px;right:28px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+  #lang{display:inline-flex;border:1px solid rgba(255,255,255,.18);border-radius:6px;overflow:hidden}
+  #lang button{border:0;border-radius:0;background:transparent;padding:8px 10px;min-width:36px;
+    text-transform:uppercase;letter-spacing:.06em;color:#c7d3dd}
+  #lang button:hover{background:rgba(255,255,255,.1)}
+  #lang button[aria-pressed="true"]{background:var(--accent);color:#fff}
+  button:focus-visible,a.btn:focus-visible{outline:2px solid #3f6dff;outline-offset:3px}
   a.btn,button{font-family:"Space Grotesk",sans-serif;font-size:12px;font-weight:600;color:var(--ink);
     background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.18);border-radius:6px;
     padding:8px 14px;cursor:pointer;transition:background .15s;text-decoration:none;display:inline-block}
@@ -60,31 +66,46 @@
   #tip.warn{border-top-color:var(--deficit)}
   #tip .flag{display:block;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.12);
     color:#f0b3a3;font-size:11px}
+  .lbl:focus-visible{outline:2px solid #3f6dff;outline-offset:2px}
+
+  /* Pantallas angostas: título arriba, controles debajo, sin leyenda (las etiquetas ya
+     nombran cada etapa) para que nada se encime sobre el modelo. */
+  @media (max-width:760px){
+    #title{top:16px;left:16px;right:16px}
+    #title h1{font-size:17px}
+    #controls{top:72px;left:16px;right:16px;justify-content:flex-start}
+    #legend{display:none}
+    #hint{left:16px;right:16px;bottom:16px}
+    #tip{width:calc(100vw - 24px);max-width:300px}
+  }
 </style>
 </head>
 <body>
 <div id="app"></div>
 
+<!-- Los textos se rellenan desde el diccionario del script (4 idiomas). El español
+     queda escrito aquí solo como respaldo si el módulo no llegara a cargar. -->
 <div id="title">
-  <h1>PYRO-CELL — Planta de procesamiento</h1>
-  <p>Layout 3D · huella 45 × 25 m · geometría de plano.m</p>
+  <h1 data-i18n="title">PYRO-CELL — Planta de procesamiento</h1>
+  <p data-i18n="subtitle">Layout 3D · huella 45 × 25 m · geometría de plano.m</p>
 </div>
 
 <div id="controls">
-  <button id="btn-labels">Etiquetas: on</button>
-  <a class="btn" href="/#/dashboard">Dashboard</a>
-  <a class="btn primary" href="/">Inicio</a>
+  <div id="lang" role="group" aria-label="Idioma"></div>
+  <button id="btn-labels" type="button">Etiquetas: on</button>
+  <a class="btn" href="/#/dashboard" data-i18n="dashboard">Dashboard</a>
+  <a class="btn primary" href="/" data-i18n="home">Inicio</a>
 </div>
 
 <div id="tip"></div>
 
-<div id="hint">Arrastra para girar · rueda para acercar · <b>pasa el cursor sobre una etiqueta</b> para ver qué hace</div>
+<div id="hint"><span data-i18n="hintA">Arrastra para girar · rueda para acercar ·</span> <b data-i18n="hintB">pasa el cursor sobre una etiqueta</b> <span data-i18n="hintC">para ver qué hace</span></div>
 
 <div id="legend">
-  <div><span class="sw" style="background:#4fb8ae"></span><b>Etapa 1</b> · recepción y centrifugado</div>
-  <div><span class="sw" style="background:#7cb86b"></span><b>Etapa 2</b> · invernadero + colectores</div>
-  <div><span class="sw" style="background:#e0654a"></span><b>Etapa 3</b> · reactor de pirólisis</div>
-  <div><span class="sw" style="background:#4aa8d8"></span><b>Etapa 4</b> · filtros de biochar</div>
+  <div><span class="sw" style="background:#4fb8ae"></span><b data-stage="0">Etapa 1</b> · <span data-legend="0">recepción y centrifugado</span></div>
+  <div><span class="sw" style="background:#7cb86b"></span><b data-stage="1">Etapa 2</b> · <span data-legend="1">invernadero + colectores</span></div>
+  <div><span class="sw" style="background:#e0654a"></span><b data-stage="2">Etapa 3</b> · <span data-legend="2">reactor de pirólisis</span></div>
+  <div><span class="sw" style="background:#4aa8d8"></span><b data-stage="3">Etapa 4</b> · <span data-legend="3">filtros de biochar</span></div>
 </div>
 
 <script type="importmap">
@@ -126,6 +147,15 @@ controls.enableDamping = true;
 controls.target.set(22.5, 2, 12.5);
 controls.maxPolarAngle = Math.PI / 2.05; // no dejar que la camara baje del suelo
 camera.position.set(-16, 22, 44);
+// En vertical (teléfono) el encuadre horizontal no cabe: se aleja la cámara en su misma
+// dirección, y la niebla con ella para que el modelo no se deslave.
+{
+  const aspect = innerWidth / innerHeight;
+  const k = aspect < 1 ? Math.min(1.7, 0.8 / aspect) : 1;
+  camera.position.sub(controls.target).multiplyScalar(k).add(controls.target);
+  scene.fog.near *= k;
+  scene.fog.far *= k;
+}
 
 scene.add(new THREE.AmbientLight(0xffffff, 0.55));
 const key = new THREE.DirectionalLight(0xffffff, 1.5);
@@ -312,7 +342,7 @@ function showTip(anchor, text, flag, warn) {
   tipBox.classList.toggle('warn', !!warn);
   tipBox.classList.add('show');
   const r = anchor.getBoundingClientRect();
-  const w = 300, gap = 10;
+  const w = tipBox.offsetWidth || 300, gap = 10;
   let left = r.left;
   if (left + w > innerWidth - 12) left = innerWidth - w - 12; // no salirse por la derecha
   let top = r.bottom + gap;
@@ -324,69 +354,275 @@ function hideTip() {
   tipBox.classList.remove('show');
 }
 
+// ================= Idiomas =================
+// Misma clave de localStorage que la app React: el idioma elegido en la landing o el
+// dashboard se respeta aquí, y viceversa (el evento 'storage' sincroniza otras pestañas).
+const LANG_KEY = 'pyrocell.lang';
+const LANGS = ['es', 'en', 'fr', 'pt'];
+const LOCALES = { es: 'es-MX', en: 'en-US', fr: 'fr-FR', pt: 'pt-BR' };
+const NAMES = { es: 'Español', en: 'English', fr: 'Français', pt: 'Português' };
+
+// Cifras del plano: mismas que calcula el dashboard para 1,500 kg/día a 500 °C.
+// Se guardan como número y se formatean con Intl según el idioma.
+const FIG = {
+  recv: [['p', 82], ['p', 60], ['n', 825]],
+  pv: [['n', 8.3, 1], ['n', 45.83, 2]],
+  green: [['n', 35], ['p', 60], ['p', 20]],
+  coll: [['n', 89.4, 1], ['n', 295]],
+  reactor: [['n', 161.3, 1]],
+  csp: [],
+  filters: [],
+  buffer: [['n', 16.5, 1], ['n', 82.7, 1], ['n', 49]],
+  regen: [],
+};
+
+const T = {
+  es: {
+    doc: 'PYRO-CELL — Planta de procesamiento 3D',
+    title: 'PYRO-CELL — Planta de procesamiento',
+    subtitle: 'Layout 3D · huella 45 × 25 m · geometría de plano.m',
+    langLabel: 'Idioma', labelsOn: 'Etiquetas: on', labelsOff: 'Etiquetas: off',
+    dashboard: 'Dashboard', home: 'Inicio',
+    hintA: 'Arrastra para girar · rueda para acercar ·', hintB: 'pasa el cursor sobre una etiqueta', hintC: 'para ver qué hace',
+    stage: 'Etapa',
+    legend: ['recepción y centrifugado', 'invernadero + colectores', 'reactor de pirólisis', 'filtros de biochar'],
+    L: {
+      recv: ['Recepción y centrifugado', '{0} → {1} humedad · {2} kg agua/día',
+        'Una centrífuga decantadora exprime el agua libre del sargazo recién cosechado por fuerza mecánica, sin gastar calor. Procesa lotes de 100 kg cada 10 minutos. El licor salino que sale se envasa como bioestimulante agrícola en vez de tirarse.'],
+      pv: ['Arreglo fotovoltaico', '{0} kWp · {1} kWh/día',
+        'Alimenta la centrífuga durante su ventana de operación (08:00 a 10:00). Un banco de baterías se carga en los minutos de reposo entre lotes y descarga en la ráfaga de centrifugado, que pide mucha más potencia de la que el arreglo entrega en promedio.'],
+      green: ['Invernadero solar pasivo', '{0} m² · {1} → {2} humedad',
+        'Camas perforadas donde la radiación solar evapora el agua intracelular que la centrífuga no puede sacar. Se modela con 50% de eficiencia real, no con la captura teórica pura: un invernadero pierde energía por transmisión del plástico, re-irradiación y convección.'],
+      coll: ['Colectores térmicos', '{0} m² · cubren {1} kWh/día',
+        'Tubos evacuados que cierran el déficit energético del invernadero sin ampliarlo ni alargar la jornada. Se eligieron térmicos y no fotovoltaicos porque alcanzan más del 60% de utilización, contra ~15% de un sistema PV con resistencia eléctrica.'],
+      reactor: ['Reactor de pirólisis', '400–600 °C · {0} kg biochar/día',
+        'Descompone térmicamente el sargazo seco en biochar, syngas y bio-aceite. Arquitectura híbrida: el campo CSP aporta el calor cuando hay sol directo, y el propio syngas se recircula y quema cuando no lo hay, sin interrumpir la producción. Punto de diseño: 500 °C.'],
+      csp: ['Campo CSP', 'calor solar concentrado',
+        'Espejos que concentran radiación solar para aportar el calor primario al reactor en modo alotérmico, evitando quemar el syngas cuando hay sol disponible.',
+        'Dimensiones ilustrativas: el campo todavía no está dimensionado.'],
+      filters: ['Banco de filtros de biochar', 'tratamiento de agua',
+        'El biochar producido se reutiliza como medio adsorbente. Hay literatura que valida la adsorción de cobre, mercurio y arsénico con biochar de sargazo.',
+        'Ningún estudio revisado prueba si el arsénico bioacumulado del propio sargazo se lixivia de vuelta al agua filtrada. Requiere prueba de lixiviación antes de operar.'],
+      buffer: ['Bodega de colchón sellada', '{0} t · {1} m³ · {2} días',
+        'Almacena sargazo acondicionado y sellado contra la humedad costera. Cubre el núcleo duro de la escasez (enero-febrero) para que el reactor opere a ritmo reducido en vez de detenerse por completo.'],
+      regen: ['Regeneración térmica', '600–800 °C',
+        'El filtro saturado vuelve al reactor y se regenera a 600–800 °C, el método estándar de la industria para carbón activado saturado, sin necesidad de equipo adicional.',
+        'Los gases de escape necesitarían tratamiento: algunos metales pueden volatilizarse a esa temperatura.'],
+    },
+  },
+  en: {
+    doc: 'PYRO-CELL — 3D processing plant',
+    title: 'PYRO-CELL — Processing plant',
+    subtitle: '3D layout · 45 × 25 m footprint · geometry from plano.m',
+    langLabel: 'Language', labelsOn: 'Labels: on', labelsOff: 'Labels: off',
+    dashboard: 'Dashboard', home: 'Home',
+    hintA: 'Drag to rotate · scroll to zoom ·', hintB: 'hover over a label', hintC: 'to see what it does',
+    stage: 'Stage',
+    legend: ['intake and centrifuge', 'greenhouse + collectors', 'pyrolysis reactor', 'biochar filters'],
+    L: {
+      recv: ['Intake and centrifuge', '{0} → {1} moisture · {2} kg water/day',
+        'A decanter centrifuge squeezes the free water out of freshly harvested sargassum by mechanical force, without spending heat. It processes 100 kg batches every 10 minutes. The saline liquor it releases is bottled as an agricultural biostimulant instead of being discarded.'],
+      pv: ['Photovoltaic array', '{0} kWp · {1} kWh/day',
+        'Powers the centrifuge during its operating window (08:00 to 10:00). A battery bank charges during the idle minutes between batches and discharges during the centrifuge burst, which draws far more power than the array delivers on average.'],
+      green: ['Passive solar greenhouse', '{0} m² · {1} → {2} moisture',
+        'Perforated beds where solar radiation evaporates the intracellular water the centrifuge cannot remove. It is modeled at 50% real efficiency, not pure theoretical capture: a greenhouse loses energy through plastic transmission, re-radiation and convection.'],
+      coll: ['Thermal collectors', '{0} m² · cover {1} kWh/day',
+        'Evacuated tubes that close the greenhouse energy deficit without enlarging it or extending the working day. Thermal was chosen over photovoltaic because it reaches more than 60% utilization, versus ~15% for a PV system with an electric heater.'],
+      reactor: ['Pyrolysis reactor', '400–600 °C · {0} kg biochar/day',
+        'Thermally decomposes dry sargassum into biochar, syngas and bio-oil. Hybrid architecture: the CSP field supplies the heat when there is direct sun, and the syngas itself is recirculated and burned when there is not, without interrupting production. Design point: 500 °C.'],
+      csp: ['CSP field', 'concentrated solar heat',
+        'Mirrors that concentrate solar radiation to supply the reactor’s primary heat in allothermal mode, avoiding burning syngas while sunlight is available.',
+        'Illustrative dimensions: the field has not been sized yet.'],
+      filters: ['Biochar filter bank', 'water treatment',
+        'The biochar produced is reused as an adsorbent medium. Published literature supports the adsorption of copper, mercury and arsenic with sargassum biochar.',
+        'No reviewed study tests whether the arsenic bioaccumulated in the sargassum itself leaches back into the filtered water. A leaching test is required before operation.'],
+      buffer: ['Sealed buffer storage', '{0} t · {1} m³ · {2} days',
+        'Stores conditioned sargassum sealed against coastal humidity. It covers the hard core of the shortage (January–February) so the reactor runs at a reduced rate instead of stopping entirely.'],
+      regen: ['Thermal regeneration', '600–800 °C',
+        'The saturated filter returns to the reactor and is regenerated at 600–800 °C, the industry-standard method for saturated activated carbon, with no additional equipment.',
+        'Exhaust gases would need treatment: some metals can volatilize at that temperature.'],
+    },
+  },
+  fr: {
+    doc: 'PYRO-CELL — Usine de traitement 3D',
+    title: 'PYRO-CELL — Usine de traitement',
+    subtitle: 'Implantation 3D · emprise 45 × 25 m · géométrie de plano.m',
+    langLabel: 'Langue', labelsOn: 'Étiquettes : on', labelsOff: 'Étiquettes : off',
+    dashboard: 'Tableau de bord', home: 'Accueil',
+    hintA: 'Glissez pour pivoter · molette pour zoomer ·', hintB: 'survolez une étiquette', hintC: 'pour voir son rôle',
+    stage: 'Étape',
+    legend: ['réception et centrifugation', 'serre + capteurs', 'réacteur de pyrolyse', 'filtres à biochar'],
+    L: {
+      recv: ['Réception et centrifugation', '{0} → {1} d’humidité · {2} kg d’eau/jour',
+        'Une centrifugeuse décanteuse extrait mécaniquement l’eau libre des sargasses fraîchement récoltées, sans consommer de chaleur. Elle traite des lots de 100 kg toutes les 10 minutes. La liqueur saline qui en sort est conditionnée comme biostimulant agricole au lieu d’être jetée.'],
+      pv: ['Champ photovoltaïque', '{0} kWc · {1} kWh/jour',
+        'Alimente la centrifugeuse pendant sa plage de fonctionnement (08:00 à 10:00). Un banc de batteries se charge pendant les minutes de repos entre les lots et se décharge lors de la centrifugation, qui exige bien plus de puissance que le champ n’en fournit en moyenne.'],
+      green: ['Serre solaire passive', '{0} m² · {1} → {2} d’humidité',
+        'Lits perforés où le rayonnement solaire évapore l’eau intracellulaire que la centrifugeuse ne peut pas extraire. Elle est modélisée avec un rendement réel de 50 %, et non avec le captage théorique pur : une serre perd de l’énergie par transmission du plastique, rerayonnement et convection.'],
+      coll: ['Capteurs thermiques', '{0} m² · couvrent {1} kWh/jour',
+        'Tubes sous vide qui comblent le déficit énergétique de la serre sans l’agrandir ni allonger la journée. Le thermique a été préféré au photovoltaïque car il dépasse 60 % d’utilisation, contre ~15 % pour un système PV avec résistance électrique.'],
+      reactor: ['Réacteur de pyrolyse', '400–600 °C · {0} kg de biochar/jour',
+        'Décompose thermiquement les sargasses sèches en biochar, syngaz et bio-huile. Architecture hybride : le champ CSP fournit la chaleur en plein soleil, et le syngaz lui-même est recirculé et brûlé en son absence, sans interrompre la production. Point de conception : 500 °C.'],
+      csp: ['Champ CSP', 'chaleur solaire concentrée',
+        'Miroirs qui concentrent le rayonnement solaire pour fournir la chaleur primaire du réacteur en mode allothermique, ce qui évite de brûler le syngaz quand le soleil est disponible.',
+        'Dimensions indicatives : le champ n’est pas encore dimensionné.'],
+      filters: ['Batterie de filtres à biochar', 'traitement de l’eau',
+        'Le biochar produit est réutilisé comme milieu adsorbant. La littérature confirme l’adsorption du cuivre, du mercure et de l’arsenic par le biochar de sargasses.',
+        'Aucune étude examinée ne vérifie si l’arsenic bioaccumulé dans les sargasses elles-mêmes est relargué dans l’eau filtrée. Un test de lixiviation est requis avant la mise en service.'],
+      buffer: ['Stockage tampon étanche', '{0} t · {1} m³ · {2} jours',
+        'Stocke les sargasses conditionnées, à l’abri de l’humidité côtière. Il couvre le cœur de la pénurie (janvier-février) pour que le réacteur tourne à régime réduit au lieu de s’arrêter complètement.'],
+      regen: ['Régénération thermique', '600–800 °C',
+        'Le filtre saturé retourne au réacteur et se régénère à 600–800 °C, la méthode standard de l’industrie pour le charbon actif saturé, sans équipement supplémentaire.',
+        'Les gaz d’échappement devraient être traités : certains métaux peuvent se volatiliser à cette température.'],
+    },
+  },
+  pt: {
+    doc: 'PYRO-CELL — Usina de processamento 3D',
+    title: 'PYRO-CELL — Usina de processamento',
+    subtitle: 'Layout 3D · área de 45 × 25 m · geometria de plano.m',
+    langLabel: 'Idioma', labelsOn: 'Rótulos: on', labelsOff: 'Rótulos: off',
+    dashboard: 'Painel', home: 'Início',
+    hintA: 'Arraste para girar · role para aproximar ·', hintB: 'passe o cursor sobre um rótulo', hintC: 'para ver o que ele faz',
+    stage: 'Etapa',
+    legend: ['recepção e centrifugação', 'estufa + coletores', 'reator de pirólise', 'filtros de biochar'],
+    L: {
+      recv: ['Recepção e centrifugação', '{0} → {1} de umidade · {2} kg de água/dia',
+        'Uma centrífuga decantadora extrai mecanicamente a água livre do sargaço recém-colhido, sem gastar calor. Processa lotes de 100 kg a cada 10 minutos. O licor salino resultante é envasado como bioestimulante agrícola em vez de ser descartado.'],
+      pv: ['Arranjo fotovoltaico', '{0} kWp · {1} kWh/dia',
+        'Alimenta a centrífuga durante sua janela de operação (08:00 às 10:00). Um banco de baterias carrega nos minutos de pausa entre lotes e descarrega no pico da centrifugação, que exige muito mais potência do que o arranjo entrega em média.'],
+      green: ['Estufa solar passiva', '{0} m² · {1} → {2} de umidade',
+        'Leitos perfurados onde a radiação solar evapora a água intracelular que a centrífuga não consegue retirar. É modelada com 50% de eficiência real, não com a captação teórica pura: uma estufa perde energia por transmissão do plástico, reirradiação e convecção.'],
+      coll: ['Coletores térmicos', '{0} m² · cobrem {1} kWh/dia',
+        'Tubos evacuados que fecham o déficit energético da estufa sem ampliá-la nem estender a jornada. Optou-se por térmicos e não fotovoltaicos porque alcançam mais de 60% de utilização, contra ~15% de um sistema PV com resistência elétrica.'],
+      reactor: ['Reator de pirólise', '400–600 °C · {0} kg de biochar/dia',
+        'Decompõe termicamente o sargaço seco em biochar, syngas e bio-óleo. Arquitetura híbrida: o campo CSP fornece o calor quando há sol direto, e o próprio syngas é recirculado e queimado quando não há, sem interromper a produção. Ponto de projeto: 500 °C.'],
+      csp: ['Campo CSP', 'calor solar concentrado',
+        'Espelhos que concentram a radiação solar para fornecer o calor primário ao reator em modo alotérmico, evitando queimar o syngas quando há sol disponível.',
+        'Dimensões ilustrativas: o campo ainda não foi dimensionado.'],
+      filters: ['Banco de filtros de biochar', 'tratamento de água',
+        'O biochar produzido é reutilizado como meio adsorvente. A literatura valida a adsorção de cobre, mercúrio e arsênio com biochar de sargaço.',
+        'Nenhum estudo revisado testa se o arsênio bioacumulado no próprio sargaço é lixiviado de volta para a água filtrada. É necessário um teste de lixiviação antes de operar.'],
+      buffer: ['Depósito de reserva vedado', '{0} t · {1} m³ · {2} dias',
+        'Armazena sargaço condicionado e vedado contra a umidade costeira. Cobre o núcleo da escassez (janeiro-fevereiro) para que o reator opere em ritmo reduzido em vez de parar por completo.'],
+      regen: ['Regeneração térmica', '600–800 °C',
+        'O filtro saturado volta ao reator e é regenerado a 600–800 °C, o método padrão da indústria para carvão ativado saturado, sem necessidade de equipamento adicional.',
+        'Os gases de exaustão precisariam de tratamento: alguns metais podem se volatilizar nessa temperatura.'],
+    },
+  },
+};
+
+function initialLang() {
+  try {
+    const saved = localStorage.getItem(LANG_KEY);
+    if (LANGS.includes(saved)) return saved;
+  } catch { /* sin almacenamiento: se usa el idioma del navegador */ }
+  const nav = (navigator.language || 'es').slice(0, 2).toLowerCase();
+  return LANGS.includes(nav) ? nav : 'es';
+}
+let lang = initialLang();
+
+function fmt(spec) {
+  const [kind, v, d = 0] = spec;
+  const o = { minimumFractionDigits: d, maximumFractionDigits: d };
+  return kind === 'p'
+    ? new Intl.NumberFormat(LOCALES[lang], { style: 'percent', ...o }).format(v / 100)
+    : new Intl.NumberFormat(LOCALES[lang], o).format(v);
+}
+const fillTpl = (tpl, vals) => tpl.replace(/\{(\d+)\}/g, (w, i) => (vals[i] === undefined ? w : vals[i]));
+
+// ================= Etiquetas con explicación al pasar el cursor =================
 const LABELS = [];
-function label(n, title, figs, tip, flag, x, y, z, warn) {
+function label(id, n, x, y, z, warn) {
   const d = document.createElement('div');
   d.className = 'lbl' + (warn ? ' warn' : '');
+  d.tabIndex = 0; // accesible con teclado: el foco muestra la misma explicación
   const num = document.createElement('span');
   num.className = 'n';
   num.textContent = n;
-  d.appendChild(num);
-  d.appendChild(document.createTextNode(title));
+  const title = document.createTextNode('');
   const sm = document.createElement('small');
-  sm.textContent = figs;
-  d.appendChild(sm);
-  d.addEventListener('mouseenter', () => showTip(d, tip, flag, warn));
+  d.append(num, title, sm);
+  const L = { id, el: d, title, sm, warn };
+  const show = () => {
+    const [, , tip, flag] = T[lang].L[id];
+    showTip(d, tip, flag, warn);
+  };
+  d.addEventListener('mouseenter', show);
+  d.addEventListener('focus', show);
   d.addEventListener('mouseleave', hideTip);
+  d.addEventListener('blur', hideTip);
   const o = new CSS2DObject(d);
   o.position.set(x, z, y);
   scene.add(o);
-  LABELS.push({ obj: o, el: d });
-  return o;
+  L.obj = o;
+  LABELS.push(L);
 }
 
-label('1', 'Recepcion y centrifugado', '82% a 60% humedad - 825 kg agua/dia',
-  'Una centrifuga decantadora exprime el agua libre del sargazo recien cosechado por fuerza mecanica, sin gastar calor. Procesa lotes de 100 kg cada 10 minutos. El licor salino que sale se envasa como bioestimulante agricola en vez de tirarse.',
-  null, 4, 7, 4.4);
-
-label('2', 'Arreglo fotovoltaico', '8.3 kWp - 45.83 kWh/dia',
-  'Alimenta la centrifuga durante su ventana de operacion (08:00 a 10:00). Un banco de baterias se carga en los minutos de reposo entre lotes y descarga en la rafaga de centrifugado, que pide mucha mas potencia de la que el arreglo entrega en promedio.',
-  null, 4, 18.7, 3.0);
-
-label('3', 'Invernadero solar pasivo', '35 m2 - 60% a 20% humedad',
-  'Camas perforadas donde la radiacion solar evapora el agua intracelular que la centrifuga no puede sacar. Se modela con 50% de eficiencia real, no con la captura teorica pura: un invernadero pierde energia por transmision del plastico, re-irradiacion y conveccion.',
-  null, 12.5, 5.5, 5.0);
-
-label('4', 'Colectores termicos', '89.4 m2 - cubren 295 kWh/dia',
-  'Tubos evacuados que cierran el deficit energetico del invernadero sin ampliarlo ni alargar la jornada. Se eligieron termicos y no fotovoltaicos porque alcanzan mas del 60% de utilizacion, contra ~15% de un sistema PV con resistencia electrica.',
-  null, 15, 16.5, 3.4);
-
-label('5', 'Reactor de pirolisis', '400-600 C - 161.3 kg biochar/dia',
-  'Descompone termicamente el sargazo seco en biochar, syngas y bio-aceite. Arquitectura hibrida: el campo CSP aporta el calor cuando hay sol directo, y el propio syngas se recircula y quema cuando no lo hay, sin interrumpir la produccion. Punto de diseno: 500 C.',
-  null, 25, 6, 9.2);
-
-label('6', 'Campo CSP', 'calor solar concentrado',
-  'Espejos que concentran radiacion solar para aportar el calor primario al reactor en modo alotermico, evitando quemar el syngas cuando hay sol disponible.',
-  'Dimensiones ilustrativas: el campo todavia no esta dimensionado.', 28, 19.5, 2.6, true);
-
-label('7', 'Banco de filtros de biochar', 'tratamiento de agua',
-  'El biochar producido se reutiliza como medio adsorbente. Hay literatura que valida la adsorcion de cobre, mercurio y arsenico con biochar de sargazo.',
-  'Ningun estudio revisado prueba si el arsenico bioacumulado del propio sargazo se lixivia de vuelta al agua filtrada. Requiere prueba de lixiviacion antes de operar.', 40, 15.5, 6.6, true);
-
-label('8', 'Bodega de colchon sellada', '16.5 t - 82.7 m3 - 49 dias',
-  'Almacena sargazo acondicionado y sellado contra la humedad costera. Cubre el nucleo duro de la escasez (enero-febrero) para que el reactor opere a ritmo reducido en vez de detenerse por completo.',
-  null, 39, 22.25, 4.4);
-
-label('-', 'Regeneracion termica', '600-800 C',
-  'El filtro saturado vuelve al reactor y se regenera a 600-800 C, el metodo estandar de la industria para carbon activado saturado, sin necesidad de equipo adicional.',
-  'Los gases de escape necesitarian tratamiento: algunos metales pueden volatilizarse a esa temperatura.', 33, 1.0, 5.2);
+label('recv', '1', 4, 7, 4.4);
+label('pv', '2', 4, 18.7, 3.0);
+label('green', '3', 12.5, 5.5, 5.0);
+label('coll', '4', 15, 16.5, 3.4);
+label('reactor', '5', 25, 6, 9.2);
+label('csp', '6', 28, 19.5, 2.6, true);
+label('filters', '7', 40, 15.5, 6.6, true);
+label('buffer', '8', 39, 22.25, 4.4);
+label('regen', '–', 33, 1.0, 5.2);
 
 let labelsOn = true;
-document.getElementById('btn-labels').onclick = (ev) => {
+const btnLabels = document.getElementById('btn-labels');
+btnLabels.onclick = () => {
   labelsOn = !labelsOn;
   labelRenderer.domElement.style.display = labelsOn ? '' : 'none';
-  ev.currentTarget.textContent = labelsOn ? 'Etiquetas: on' : 'Etiquetas: off';
+  if (!labelsOn) hideTip();
+  btnLabels.textContent = labelsOn ? T[lang].labelsOn : T[lang].labelsOff;
+  btnLabels.setAttribute('aria-pressed', String(labelsOn));
 };
+
+// Selector de idioma: mismos códigos y orden que en la app.
+const langBox = document.getElementById('lang');
+const langBtns = LANGS.map((code) => {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.textContent = code;
+  b.lang = code;
+  b.title = NAMES[code];
+  b.setAttribute('aria-label', NAMES[code]);
+  b.onclick = () => setLang(code);
+  langBox.appendChild(b);
+  return b;
+});
+
+function applyLang() {
+  const t = T[lang];
+  document.documentElement.lang = lang;
+  document.title = t.doc;
+  document.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = t[el.dataset.i18n]; });
+  document.querySelectorAll('[data-stage]').forEach((el) => { el.textContent = `${t.stage} ${+el.dataset.stage + 1}`; });
+  document.querySelectorAll('[data-legend]').forEach((el) => { el.textContent = t.legend[+el.dataset.legend]; });
+  langBox.setAttribute('aria-label', t.langLabel);
+  langBtns.forEach((b) => b.setAttribute('aria-pressed', String(b.lang === lang)));
+  btnLabels.textContent = labelsOn ? t.labelsOn : t.labelsOff;
+  LABELS.forEach((L) => {
+    const [title, figs] = t.L[L.id];
+    L.title.textContent = title;
+    L.sm.textContent = fillTpl(figs, FIG[L.id].map(fmt));
+  });
+  hideTip();
+}
+
+function setLang(next) {
+  if (!LANGS.includes(next)) return;
+  lang = next;
+  try { localStorage.setItem(LANG_KEY, next); } catch { /* sin persistencia */ }
+  applyLang();
+}
+addEventListener('storage', (e) => {
+  if (e.key === LANG_KEY && LANGS.includes(e.newValue) && e.newValue !== lang) {
+    lang = e.newValue;
+    applyLang();
+  }
+});
+applyLang();
 
 // ---- Loop ----
 const clock = new THREE.Clock();

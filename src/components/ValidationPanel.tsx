@@ -1,29 +1,39 @@
 import { useState } from "react";
+import { useI18n } from "../i18n/context";
+import { f } from "../i18n/format";
 import type { AIValidationOutput, CitizenObservationInput, Morphotype } from "../lib/constants";
 
-const MORPHOTYPE_OPTIONS: { value: Morphotype; label: string }[] = [
-  { value: "unknown", label: "Desconocido" },
-  { value: "S_natans_I", label: "S. natans I" },
-  { value: "S_natans_VIII", label: "S. natans VIII" },
-  { value: "S_fluitans_III", label: "S. fluitans III" },
-];
-
-// Ejemplo prellenado para demo: Playa del Carmen, temporada alta.
-const DEFAULT_INPUT: CitizenObservationInput = {
-  photoDescription: "Franja de algas pardo-doradas de ~2 m de ancho sobre la arena, con vesículas y olor fuerte.",
-  estimatedTonnage: 12,
-  gpsLocation: { lat: 20.63, lng: -87.07 },
-  observedMorphotype: "unknown",
+const MORPHOTYPES: Morphotype[] = ["unknown", "S_natans_I", "S_natans_VIII", "S_fluitans_III"];
+const MORPHOTYPE_NAMES: Record<Exclude<Morphotype, "unknown">, string> = {
+  S_natans_I: "S. natans I",
+  S_natans_VIII: "S. natans VIII",
+  S_fluitans_III: "S. fluitans III",
 };
 
-type ReviewDecision = "aprobada" | "rechazada" | null;
+// Ejemplo prellenado para demo: Playa del Carmen, temporada alta. La descripción viene
+// del diccionario para que el ejemplo aparezca en el idioma elegido.
+const DEFAULT_FIELDS = {
+  estimatedTonnage: 12,
+  gpsLocation: { lat: 20.63, lng: -87.07 },
+  observedMorphotype: "unknown" as Morphotype,
+};
+
+type ReviewDecision = "approved" | "rejected" | null;
 
 export function ValidationPanel() {
-  const [input, setInput] = useState<CitizenObservationInput>(DEFAULT_INPUT);
+  const { t, lang } = useI18n();
+  const v = t.dash.validate;
+
+  // null = el usuario no ha tocado la descripción: se muestra la de ejemplo del idioma
+  // activo, así cambia sola al cambiar de idioma en vez de quedarse en español.
+  const [photo, setPhoto] = useState<string | null>(null);
+  const [fields, setFields] = useState(DEFAULT_FIELDS);
   const [result, setResult] = useState<AIValidationOutput | null>(null);
   const [decision, setDecision] = useState<ReviewDecision>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const photoDescription = photo ?? v.defaultPhoto;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -31,24 +41,23 @@ export function ValidationPanel() {
     setError(null);
     setResult(null);
     setDecision(null);
+    const input: CitizenObservationInput = { photoDescription, ...fields };
     try {
       const res = await fetch("/api/validate-observation", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify(input),
+        // lang: el modelo redacta explicación, razonamiento y anomalías en este idioma.
+        body: JSON.stringify({ ...input, lang }),
       });
       const ct = res.headers.get("content-type") ?? "";
-      if (!res.ok || !ct.includes("application/json")) {
+      if (!ct.includes("application/json")) {
         // En local (npm run dev) la función Edge no corre; Vite responde el index.html.
-        const detail = await res.text().catch(() => "");
-        throw new Error(
-          !ct.includes("application/json")
-            ? "La función Edge no está disponible aquí. Despliega a Vercel con GROQ_API_KEY para probar la validación contra Groq."
-            : `Error ${res.status}: ${detail.slice(0, 200)}`
-        );
+        throw new Error(v.errNoEdge);
       }
       const data = (await res.json()) as AIValidationOutput & { error?: string };
-      if (data.error) throw new Error(data.error);
+      if (!res.ok || data.error) {
+        throw new Error(data.error ?? f(v.errStatus, res.status, res.statusText));
+      }
       setResult(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -57,63 +66,80 @@ export function ValidationPanel() {
     }
   }
 
+  const input = "w-full bg-bg-raised border border-border rounded px-2 py-1.5 text-sm";
+
   return (
     <div className="bg-bg-panel border border-border rounded-lg p-5">
-      <p className="font-display font-semibold text-base mb-1">Validación con IA (Track 3)</p>
-      <p className="text-xs text-text-muted mb-4">
-        Groq · gpt-oss-120b · flujo human-in-the-loop con explicabilidad
-      </p>
+      <p className="font-display font-semibold text-base mb-1">{v.title}</p>
+      <p className="text-xs text-text-muted mb-4">{v.subtitle}</p>
 
       <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
         <div className="md:col-span-2">
-          <label className="text-xs text-text-secondary block mb-1">Descripción de la foto</label>
+          <label htmlFor="obs-photo" className="text-xs text-text-secondary block mb-1">
+            {v.photo}
+          </label>
           <textarea
-            value={input.photoDescription}
-            onChange={(e) => setInput({ ...input, photoDescription: e.target.value })}
+            id="obs-photo"
+            value={photoDescription}
+            onChange={(e) => setPhoto(e.target.value)}
             rows={2}
-            className="w-full bg-bg-raised border border-border rounded px-2 py-1.5 text-sm resize-none"
+            className={`${input} resize-none`}
           />
         </div>
         <div>
-          <label className="text-xs text-text-secondary block mb-1">Tonelaje estimado (t)</label>
+          <label htmlFor="obs-tonnage" className="text-xs text-text-secondary block mb-1">
+            {v.tonnage}
+          </label>
           <input
+            id="obs-tonnage"
             type="number"
             step="0.1"
-            value={input.estimatedTonnage}
-            onChange={(e) => setInput({ ...input, estimatedTonnage: Number(e.target.value) })}
-            className="w-full bg-bg-raised border border-border rounded px-2 py-1.5 text-sm font-data"
+            value={fields.estimatedTonnage}
+            onChange={(e) => setFields({ ...fields, estimatedTonnage: Number(e.target.value) })}
+            className={`${input} font-data`}
           />
         </div>
         <div>
-          <label className="text-xs text-text-secondary block mb-1">Morfotipo observado</label>
+          <label htmlFor="obs-morpho" className="text-xs text-text-secondary block mb-1">
+            {v.morpho}
+          </label>
           <select
-            value={input.observedMorphotype}
-            onChange={(e) => setInput({ ...input, observedMorphotype: e.target.value as Morphotype })}
-            className="w-full bg-bg-raised border border-border rounded px-2 py-1.5 text-sm"
+            id="obs-morpho"
+            value={fields.observedMorphotype}
+            onChange={(e) => setFields({ ...fields, observedMorphotype: e.target.value as Morphotype })}
+            className={input}
           >
-            {MORPHOTYPE_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
+            {MORPHOTYPES.map((m) => (
+              <option key={m} value={m}>
+                {m === "unknown" ? v.unknown : MORPHOTYPE_NAMES[m]}
+              </option>
             ))}
           </select>
         </div>
         <div>
-          <label className="text-xs text-text-secondary block mb-1">Latitud</label>
+          <label htmlFor="obs-lat" className="text-xs text-text-secondary block mb-1">
+            {v.lat}
+          </label>
           <input
+            id="obs-lat"
             type="number"
             step="0.0001"
-            value={input.gpsLocation.lat}
-            onChange={(e) => setInput({ ...input, gpsLocation: { ...input.gpsLocation, lat: Number(e.target.value) } })}
-            className="w-full bg-bg-raised border border-border rounded px-2 py-1.5 text-sm font-data"
+            value={fields.gpsLocation.lat}
+            onChange={(e) => setFields({ ...fields, gpsLocation: { ...fields.gpsLocation, lat: Number(e.target.value) } })}
+            className={`${input} font-data`}
           />
         </div>
         <div>
-          <label className="text-xs text-text-secondary block mb-1">Longitud</label>
+          <label htmlFor="obs-lng" className="text-xs text-text-secondary block mb-1">
+            {v.lng}
+          </label>
           <input
+            id="obs-lng"
             type="number"
             step="0.0001"
-            value={input.gpsLocation.lng}
-            onChange={(e) => setInput({ ...input, gpsLocation: { ...input.gpsLocation, lng: Number(e.target.value) } })}
-            className="w-full bg-bg-raised border border-border rounded px-2 py-1.5 text-sm font-data"
+            value={fields.gpsLocation.lng}
+            onChange={(e) => setFields({ ...fields, gpsLocation: { ...fields.gpsLocation, lng: Number(e.target.value) } })}
+            className={`${input} font-data`}
           />
         </div>
         <div className="md:col-span-2">
@@ -122,13 +148,13 @@ export function ValidationPanel() {
             disabled={loading}
             className="w-full bg-accent text-white font-display font-semibold text-sm rounded px-4 py-2 hover:opacity-90 disabled:opacity-50 transition-opacity"
           >
-            {loading ? "Validando con IA…" : "Validar observación"}
+            {loading ? v.submitting : v.submit}
           </button>
         </div>
       </form>
 
       {error && (
-        <div className="border border-deficit-dim bg-deficit-dim/20 rounded px-4 py-3 text-sm text-text-secondary">
+        <div role="alert" className="border border-deficit-dim bg-deficit-dim/20 rounded px-4 py-3 text-sm text-text-secondary">
           {error}
         </div>
       )}
@@ -147,21 +173,23 @@ function ResultCard({
   decision: ReviewDecision;
   onDecision: (d: ReviewDecision) => void;
 }) {
+  const { t, p } = useI18n();
+  const v = t.dash.validate;
   const pct = Math.round(result.confidenceScore * 100);
   const confAccent = pct >= 60 ? "text-surplus" : pct >= 40 ? "text-energy" : "text-deficit";
 
   return (
-    <div className="border-t border-border pt-4 space-y-3">
+    <div className="border-t border-border pt-4 space-y-3" aria-live="polite">
       <div className="flex items-center justify-between">
-        <span className="text-xs text-text-secondary">Confianza del modelo</span>
-        <span className={`font-display font-semibold text-lg ${confAccent}`}>{pct}%</span>
+        <span className="text-xs text-text-secondary">{v.confidence}</span>
+        <span className={`font-display font-semibold text-lg ${confAccent}`}>{p(pct)}</span>
       </div>
 
-      <p className="text-sm text-text-primary leading-relaxed">{result.explanation}</p>
+      <p className="text-sm text-text-primary">{result.explanation}</p>
 
       {result.anomalyFlags.length > 0 && (
         <div>
-          <p className="text-xs text-text-secondary mb-1">Anomalías detectadas</p>
+          <p className="text-xs text-text-secondary mb-1">{v.anomalies}</p>
           <ul className="space-y-1">
             {result.anomalyFlags.map((flag, i) => (
               <li key={i} className="text-xs text-deficit flex gap-2">
@@ -175,41 +203,39 @@ function ResultCard({
 
       {result.reasoning && (
         <details className="text-xs">
-          <summary className="text-text-secondary cursor-pointer select-none">Ver razonamiento paso a paso</summary>
-          <p className="text-text-muted mt-2 leading-relaxed whitespace-pre-line">{result.reasoning}</p>
+          <summary className="text-text-secondary cursor-pointer select-none">{v.reasoning}</summary>
+          <p className="text-text-muted mt-2 whitespace-pre-line">{result.reasoning}</p>
         </details>
       )}
 
-      {result.humanReviewRequired && (
+      {result.humanReviewRequired ? (
         <div className="border border-energy-dim bg-energy-dim/15 rounded px-4 py-3">
-          <p className="text-sm text-energy font-medium mb-2">Requiere revisión humana</p>
+          <p className="text-sm text-energy font-medium mb-2">{v.needsReview}</p>
           {decision === null ? (
             <div className="flex gap-2">
               <button
-                onClick={() => onDecision("aprobada")}
+                type="button"
+                onClick={() => onDecision("approved")}
                 className="flex-1 bg-surplus text-white font-display font-semibold text-sm rounded px-3 py-1.5 hover:opacity-90 transition-opacity"
               >
-                Aprobar
+                {v.approve}
               </button>
               <button
-                onClick={() => onDecision("rechazada")}
+                type="button"
+                onClick={() => onDecision("rejected")}
                 className="flex-1 bg-deficit text-white font-display font-semibold text-sm rounded px-3 py-1.5 hover:opacity-90 transition-opacity"
               >
-                Rechazar
+                {v.reject}
               </button>
             </div>
           ) : (
-            <p className={`text-sm font-medium ${decision === "aprobada" ? "text-surplus" : "text-deficit"}`}>
-              Observación {decision} por revisor humano.
+            <p className={`text-sm font-medium ${decision === "approved" ? "text-surplus" : "text-deficit"}`}>
+              {decision === "approved" ? v.approved : v.rejected}
             </p>
           )}
         </div>
-      )}
-
-      {!result.humanReviewRequired && (
-        <p className="text-sm text-surplus font-medium">
-          Aprobada automáticamente — confianza suficiente y sin anomalías.
-        </p>
+      ) : (
+        <p className="text-sm text-surplus font-medium">{v.autoApproved}</p>
       )}
     </div>
   );

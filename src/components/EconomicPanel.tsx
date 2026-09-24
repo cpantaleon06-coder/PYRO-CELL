@@ -1,5 +1,7 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Line, LineChart, ReferenceDot, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { useI18n } from "../i18n/context";
+import { f, fill } from "../i18n/format";
 import {
   biocharYieldInterpolated,
   breakevenPrice,
@@ -32,6 +34,9 @@ interface EconomicPanelProps {
 }
 
 export function EconomicPanel({ reactorTempC, op }: EconomicPanelProps) {
+  const { t, n, p } = useI18n();
+  const ec = t.dash.econ;
+  const kgDay = t.dash.kgDay;
   const [acquisitionCost, setAcquisitionCost] = useState(2);
   const price = useMemo(() => breakevenPrice(acquisitionCost), [acquisitionCost]);
 
@@ -42,15 +47,20 @@ export function EconomicPanel({ reactorTempC, op }: EconomicPanelProps) {
   // Ingreso indicativo al precio base de comparación de Cheatham et al. ($100/t).
   const biocharRevenuePerDay = (biocharKgPerDay / 1000) * ECONOMIC_CONSTANTS.baselineBiocharPriceUSDPerTon;
 
+  // Signo delante del símbolo (−$23, no $-23), con el separador decimal del idioma.
+  const usd = (v: number, d = 0) => `${v < 0 ? "−" : ""}$${n(Math.abs(v), d)}`;
+  const acqLabel = `${usd(acquisitionCost)}/t`;
+
   return (
     <div className="bg-bg-panel border border-border rounded-lg p-5">
-      <p className="font-display font-semibold text-base mb-4">Modelo económico</p>
+      <p className="font-display font-semibold text-base mb-4">{ec.title}</p>
 
-      <label className="text-xs text-text-secondary block mb-1.5">
-        Costo de adquisición: <span className="text-accent font-data">{acquisitionCost >= 0 ? "$" : "−$"}{Math.abs(acquisitionCost)}/t</span>
-        <span className="text-text-muted"> {acquisitionCost < 0 ? "(tarifa cobrada)" : "(costo pagado)"}</span>
+      <label htmlFor="acq-cost" className="text-xs text-text-secondary block mb-1.5">
+        {ec.acq} <span className="text-accent font-data">{acqLabel}</span>
+        <span className="text-text-muted"> {acquisitionCost < 0 ? ec.feeCharged : ec.costPaid}</span>
       </label>
       <input
+        id="acq-cost"
         type="range"
         min={-25}
         max={25}
@@ -63,13 +73,13 @@ export function EconomicPanel({ reactorTempC, op }: EconomicPanelProps) {
       <div className="h-36 -mx-2 mb-4">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={CURVE_DATA} margin={{ top: 4, right: 8, bottom: 4, left: 0 }}>
-            <XAxis dataKey="x" tick={{ fontSize: 10, fill: "#55606b" }} tickFormatter={(v) => `$${v}`} />
-            <YAxis tick={{ fontSize: 10, fill: "#55606b" }} width={36} />
+            <XAxis dataKey="x" tick={{ fontSize: 10, fill: "#55606b" }} tickFormatter={(v) => usd(Number(v))} />
+            <YAxis tick={{ fontSize: 10, fill: "#55606b" }} width={36} tickFormatter={(v) => n(Number(v))} />
             <Tooltip
               contentStyle={{ background: "#ffffff", border: "1px solid #e4e0d4", fontSize: 12 }}
               labelStyle={{ color: "#17202b" }}
-              formatter={(v) => [`$${Number(v).toFixed(2)}/t`, "Precio de equilibrio"]}
-              labelFormatter={(l) => `Adquisición: $${l}/t`}
+              formatter={(v) => [`${usd(Number(v), 2)}/t`, ec.tooltipPrice]}
+              labelFormatter={(l) => f(ec.tooltipAcq, `${usd(Number(l))}/t`)}
             />
             <Line type="monotone" dataKey="price" stroke="#4fb8ae" strokeWidth={2} dot={false} />
             <ReferenceDot x={acquisitionCost} y={price} r={5} fill="#e3a03c" stroke="#ffffff" strokeWidth={2} />
@@ -78,50 +88,51 @@ export function EconomicPanel({ reactorTempC, op }: EconomicPanelProps) {
       </div>
 
       <div className="space-y-2 text-sm border-t border-border pt-3">
-        <Row label="Precio de equilibrio" value={`$${price.toFixed(2)}/t`} />
-        <Row label="VAN a 12 años (base)" value={`+$${(ECONOMIC_CONSTANTS.npv12yrUSD / 1e6).toFixed(2)}M`} accent="surplus" />
-        <Row label="Capital total" value={`$${ECONOMIC_CONSTANTS.capitalCostUSD.toLocaleString("en-US")}`} />
-        <Row label="Punto de equilibrio" value={`Año ${ECONOMIC_CONSTANTS.breakevenYear}`} />
+        <Row label={ec.rows.breakeven} value={`${usd(price, 2)}/t`} />
+        <Row label={ec.rows.npv} value={`+${usd(ECONOMIC_CONSTANTS.npv12yrUSD / 1e6, 2)}M`} accent="surplus" />
+        <Row label={ec.rows.capital} value={usd(ECONOMIC_CONSTANTS.capitalCostUSD)} />
+        <Row label={ec.rows.breakevenYear} value={f(ec.rows.year, ECONOMIC_CONSTANTS.breakevenYear)} />
       </div>
 
       <div className="space-y-2 text-sm border-t border-border pt-3 mt-3">
         <p className="text-xs text-text-secondary mb-1">
-          Producto vendible a <span className="text-accent font-data">{reactorTempC}°C</span> con{" "}
-          <span className="text-accent font-data">{op.freshKgPerDay.toFixed(0)} kg/día</span> de entrada
+          {fill(ec.product,
+            <span className="text-accent font-data">{n(reactorTempC)} °C</span>,
+            <span className="text-accent font-data">{`${n(op.freshKgPerDay)} ${kgDay}`}</span>
+          )}
         </p>
-        <Row label="Rendimiento de biochar" value={`${(biocharYield * 100).toFixed(1)}%`} />
+        <Row label={ec.yield} value={p(biocharYield * 100, 1)} />
         <Row
-          label="Biochar producido"
-          value={`${biocharKgPerDay.toFixed(1)} kg/día`}
+          label={ec.produced}
+          value={`${n(biocharKgPerDay, 1)} ${kgDay}`}
           accent={op.reactorRatePct < 100 ? "deficit" : undefined}
         />
         {op.reactorRatePct < 100 && (
           <Row
-            label="Pérdida vs temporada alta"
-            value={`−${(biocharNominalKgPerDay - biocharKgPerDay).toFixed(1)} kg/día`}
+            label={ec.loss}
+            value={`−${n(biocharNominalKgPerDay - biocharKgPerDay, 1)} ${kgDay}`}
             accent="deficit"
           />
         )}
-        <Row label={`Ingreso a $${ECONOMIC_CONSTANTS.baselineBiocharPriceUSDPerTon}/t`} value={`$${biocharRevenuePerDay.toFixed(2)}/día`} />
+        <Row
+          label={f(ec.revenue, usd(ECONOMIC_CONSTANTS.baselineBiocharPriceUSDPerTon))}
+          value={`${usd(biocharRevenuePerDay, 2)}/${kgDay.split("/")[1]}`}
+        />
       </div>
 
-      <p className="text-xs text-text-muted mt-3 leading-relaxed">
-        Curva interpolada por el proyecto entre los 3 escenarios que reportó Cheatham et al. 2026, no es la
-        fórmula original del estudio. El rendimiento de biochar es una <span className="text-energy">interpolación propia</span>{" "}
-        entre Milledge (67.6% a 400°C) y Cheatham (51.91% a 600°C), no un dato medido a temperaturas intermedias;
-        el precio de equilibrio, en cambio, solo depende del costo de adquisición (la temperatura no entra en esa
-        fórmula del estudio).
+      <p className="text-xs text-text-muted mt-3">
+        {fill(ec.note, <span className="text-energy">{ec.noteHl}</span>)}
       </p>
     </div>
   );
 }
 
-function Row({ label, value, accent }: { label: string; value: string; accent?: "surplus" | "deficit" }) {
+function Row({ label, value, accent }: { label: ReactNode; value: string; accent?: "surplus" | "deficit" }) {
   const color = accent === "surplus" ? "text-surplus" : accent === "deficit" ? "text-deficit" : "text-text-primary";
   return (
-    <div className="flex justify-between items-baseline">
+    <div className="flex justify-between items-baseline gap-4">
       <span className="text-text-secondary">{label}</span>
-      <span className={`font-data ${color}`}>{value}</span>
+      <span className={`font-data text-right ${color}`}>{value}</span>
     </div>
   );
 }

@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { useI18n } from "../i18n/context";
+import { f } from "../i18n/format";
 import {
   computeEnergyBalance,
   computeMassBalance,
@@ -17,6 +19,8 @@ interface EnergyPanelProps {
 }
 
 export function EnergyPanel({ reactorTempC, onReactorTempChange, op }: EnergyPanelProps) {
+  const { t, n, p } = useI18n();
+  const e = t.dash.energy;
   const [dryingMode, setDryingMode] = useState<"passive_only" | "passive_plus_thermal">("passive_plus_thermal");
 
   // El balance se calcula sobre el caudal REAL del mes, no sobre los 1,500 kg nominales.
@@ -33,10 +37,10 @@ export function EnergyPanel({ reactorTempC, onReactorTempChange, op }: EnergyPan
   const energy = useMemo(() => computeEnergyBalance(mass, reactorTempC), [mass, reactorTempC]);
 
   const chartData = [
-    { etapa: "Centrífuga", MJ: Math.round(energy.stage1EnergyRequiredMJ) },
-    { etapa: "Invernadero\n(50% ef.)", MJ: Math.round(energy.stage2EnergyRequiredMJ) },
-    { etapa: "Calor\npirólisis", MJ: Math.round(energy.pyrolysisHeatRequiredMJPerKg * mass.materiaSecaKg) },
-    { etapa: "Syngas +\nbio-aceite", MJ: Math.round(ENERGY_CONSTANTS.syngasBiocrudeYield * mass.materiaSecaKg) },
+    { etapa: e.chart.centrifuge, MJ: Math.round(energy.stage1EnergyRequiredMJ) },
+    { etapa: e.chart.greenhouse, MJ: Math.round(energy.stage2EnergyRequiredMJ) },
+    { etapa: e.chart.pyroHeat, MJ: Math.round(energy.pyrolysisHeatRequiredMJPerKg * mass.materiaSecaKg) },
+    { etapa: e.chart.syngas, MJ: Math.round(ENERGY_CONSTANTS.syngasBiocrudeYield * mass.materiaSecaKg) },
   ];
 
   const stage2RequiredKWh = energy.stage2EnergyRequiredMJ / 3.6;
@@ -48,66 +52,73 @@ export function EnergyPanel({ reactorTempC, onReactorTempChange, op }: EnergyPan
   // Si falta energía y no hay colectores, solo se seca a 20% la fracción que la energía
   // disponible alcanza. Interpretación del déficit, no una medición.
   const driedBatchKg = mass.salidaEtapa2Kg * Math.min(1, coverage);
+  const signed = (v: number, d: number) => `${v >= 0 ? "+" : ""}${n(v, d)}`;
 
   return (
     <div className="bg-bg-panel border border-border rounded-lg p-5">
       <div className="flex items-baseline justify-between gap-2 flex-wrap mb-1">
-        <p className="font-display font-semibold text-base">Balance energético</p>
-        <span className="text-xs font-data text-text-secondary">{op.freshKgPerDay.toFixed(0)} kg/día</span>
+        <p className="font-display font-semibold text-base">{e.title}</p>
+        <span className="text-xs font-data text-text-secondary">
+          {n(op.freshKgPerDay)} {t.dash.kgDay}
+        </span>
       </div>
       <p className="text-xs text-text-muted mb-4">
-        {op.reactorRatePct >= 100
-          ? "Caudal nominal completo"
-          : `Escalado al ${op.reactorRatePct.toFixed(0)}% por la estacionalidad`}
+        {op.reactorRatePct >= 100 ? e.nominal : f(e.scaled, p(op.reactorRatePct))}
       </p>
 
-      <label className="text-xs text-text-secondary block mb-1.5">
-        Temperatura de reactor: <span className="text-accent font-data">{reactorTempC}°C</span>
-        {reactorTempC === 500 && <span className="text-text-muted"> (diseño)</span>}
+      <label htmlFor="reactor-temp" className="text-xs text-text-secondary block mb-1.5">
+        {e.temp} <span className="text-accent font-data">{n(reactorTempC)} °C</span>
+        {reactorTempC === ENERGY_CONSTANTS.reactorDesignTempC && (
+          <span className="text-text-muted"> {e.design}</span>
+        )}
       </label>
       <input
+        id="reactor-temp"
         type="range"
         min={400}
         max={600}
         step={10}
         value={reactorTempC}
-        onChange={(e) => onReactorTempChange(Number(e.target.value))}
+        onChange={(ev) => onReactorTempChange(Number(ev.target.value))}
         className="w-full mb-4 accent-accent"
       />
-      <p className="text-xs text-text-muted -mt-3 mb-4">
-        Punto de diseño compartido: también recalcula el rendimiento de biochar en el módulo económico.
-      </p>
+      <p className="text-xs text-text-muted -mt-3 mb-4">{e.shared}</p>
 
-      <label className="text-xs text-text-secondary block mb-1.5">Modo de secado, Etapa 2</label>
+      <label htmlFor="drying-mode" className="text-xs text-text-secondary block mb-1.5">
+        {e.dryingMode}
+      </label>
       <select
+        id="drying-mode"
         value={dryingMode}
-        onChange={(e) => setDryingMode(e.target.value as typeof dryingMode)}
+        onChange={(ev) => setDryingMode(ev.target.value as typeof dryingMode)}
         className="w-full mb-2 bg-bg-raised border border-border rounded px-2 py-1.5 text-sm"
       >
-        <option value="passive_plus_thermal">Invernadero + colectores térmicos</option>
-        <option value="passive_only">Solo invernadero pasivo (déficit sin cerrar)</option>
+        <option value="passive_plus_thermal">{e.optBoth}</option>
+        <option value="passive_only">{e.optPassive}</option>
       </select>
       <p
-        className={`text-xs mb-4 leading-relaxed ${
+        className={`text-xs mb-4 ${
           selfSufficient ? "text-surplus" : passiveOnly ? "text-deficit" : "text-text-muted"
         }`}
       >
         {selfSufficient
-          ? `A este caudal el invernadero pasivo se basta solo: sus 35 m² cubren el ${(coverage * 100).toFixed(0)}% de la energía necesaria, así que el lote de ${mass.salidaEtapa2Kg.toFixed(1)} kg llega al 20% sin encender los colectores.`
+          ? f(e.selfSufficient, p(coverage * 100), n(mass.salidaEtapa2Kg, 1))
           : passiveOnly
-          ? `Sin colectores, los 35 m² de invernadero solo cubren el ${(coverage * 100).toFixed(0)}% de la energía necesaria: únicamente ${driedBatchKg.toFixed(1)} kg de los ${mass.salidaEtapa2Kg.toFixed(1)} kg alcanzan el 20% de humedad.`
-          : `Los ${energy.thermalCollectorAreaM2.toFixed(1)} m² de colectores cierran el déficit: el lote completo de ${mass.salidaEtapa2Kg.toFixed(1)} kg llega al 20%.`}
+            ? f(e.passiveShort, p(coverage * 100), n(driedBatchKg, 1), n(mass.salidaEtapa2Kg, 1))
+            : f(e.collectorsClose, n(energy.thermalCollectorAreaM2, 1), n(mass.salidaEtapa2Kg, 1))}
       </p>
 
-      <div className="h-36 -mx-2 mb-4">
+      <div className="h-44 -mx-2 mb-4">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData} margin={{ top: 4, right: 8, bottom: 4, left: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e4e0d4" vertical={false} />
-            <XAxis dataKey="etapa" tick={{ fontSize: 10, fill: "#55606b" }} interval={0} />
-            <YAxis tick={{ fontSize: 10, fill: "#55606b" }} width={36} />
+            <XAxis dataKey="etapa" tick={(props) => <WrapTick {...props} />} interval={0} height={42} />
+            <YAxis tick={{ fontSize: 10, fill: "#55606b" }} width={34} tickFormatter={(v) => n(Number(v))} />
             <Tooltip
               contentStyle={{ background: "#ffffff", border: "1px solid #e4e0d4", fontSize: 12 }}
               labelStyle={{ color: "#17202b" }}
+              formatter={(v) => [`${n(Number(v))} MJ`, ""]}
+              separator=""
             />
             <Bar dataKey="MJ" fill="#e3a03c" radius={[3, 3, 0, 0]} />
           </BarChart>
@@ -115,28 +126,28 @@ export function EnergyPanel({ reactorTempC, onReactorTempChange, op }: EnergyPan
       </div>
 
       <div className="space-y-2 text-sm border-t border-border pt-3">
-        <Row label="Agua removida etapa 1" value={`${mass.stage1WaterRemovedKg.toFixed(0)} kg`} />
-        <Row label="Agua evaporada etapa 2" value={`${mass.stage2WaterRemovedKg.toFixed(1)} kg`} />
+        <Row label={e.rows.water1} value={`${n(mass.stage1WaterRemovedKg)} kg`} />
+        <Row label={e.rows.water2} value={`${n(mass.stage2WaterRemovedKg, 1)} kg`} />
         <Row
-          label="Cobertura pasiva del invernadero"
-          value={`${(coverage * 100).toFixed(0)}%`}
+          label={e.rows.coverage}
+          value={p(coverage * 100)}
           accent={coverage >= 1 ? "surplus" : "deficit"}
         />
         {selfSufficient ? (
-          <Row label="Área de colectores térmicos" value="no requeridos" accent="surplus" />
+          <Row label={e.rows.collectorArea} value={e.rows.notRequired} accent="surplus" />
         ) : passiveOnly ? (
-          <Row label="Lote que alcanza 20% humedad" value={`${driedBatchKg.toFixed(1)} kg`} accent="deficit" />
+          <Row label={e.rows.driedBatch} value={`${n(driedBatchKg, 1)} kg`} accent="deficit" />
         ) : (
-          <Row label="Área de colectores térmicos" value={`${energy.thermalCollectorAreaM2.toFixed(1)} m²`} />
+          <Row label={e.rows.collectorArea} value={`${n(energy.thermalCollectorAreaM2, 1)} m²`} />
         )}
         <Row
-          label="Superávit de pirólisis"
-          value={`${energy.pyrolysisEnergySurplusMJPerKg >= 0 ? "+" : ""}${energy.pyrolysisEnergySurplusMJPerKg.toFixed(2)} MJ/kg`}
+          label={e.rows.pyroSurplus}
+          value={`${signed(energy.pyrolysisEnergySurplusMJPerKg, 2)} MJ/kg`}
           accent={energy.netBalanceStatus === "surplus" ? "surplus" : "deficit"}
         />
         <Row
-          label="Energía neta del día"
-          value={`${energy.pyrolysisEnergySurplusTotalMJ >= 0 ? "+" : ""}${energy.pyrolysisEnergySurplusTotalMJ.toFixed(0)} MJ`}
+          label={e.rows.netEnergy}
+          value={`${signed(energy.pyrolysisEnergySurplusTotalMJ, 0)} MJ`}
           accent={energy.pyrolysisEnergySurplusTotalMJ >= 0 ? "surplus" : "deficit"}
         />
       </div>
@@ -144,12 +155,38 @@ export function EnergyPanel({ reactorTempC, onReactorTempChange, op }: EnergyPan
   );
 }
 
+/** Parte una etiqueta en renglones de hasta `max` caracteres, sin cortar palabras. */
+function wrapWords(text: string, max: number): string[] {
+  const lines: string[] = [];
+  for (const word of text.split(" ")) {
+    const last = lines[lines.length - 1];
+    if (last !== undefined && (last + " " + word).length <= max) lines[lines.length - 1] = last + " " + word;
+    else lines.push(word);
+  }
+  return lines;
+}
+
+/** Tick del eje X en varios renglones: las etapas traducidas ("Gaz de synthèse +
+ *  bio-huile") no caben en una línea y se enciman con la vecina en pantallas angostas. */
+function WrapTick({ x, y, payload }: { x?: number | string; y?: number | string; payload?: { value?: unknown } }) {
+  const lines = wrapWords(String(payload?.value ?? ""), 12);
+  return (
+    <text x={x} y={y} textAnchor="middle" fontSize={9.5} fill="#55606b">
+      {lines.map((line, i) => (
+        <tspan key={i} x={x} dy={i === 0 ? 10 : 11}>
+          {line}
+        </tspan>
+      ))}
+    </text>
+  );
+}
+
 function Row({ label, value, accent }: { label: string; value: string; accent?: "surplus" | "deficit" }) {
   const color = accent === "surplus" ? "text-surplus" : accent === "deficit" ? "text-deficit" : "text-text-primary";
   return (
-    <div className="flex justify-between items-baseline">
+    <div className="flex justify-between items-baseline gap-4">
       <span className="text-text-secondary">{label}</span>
-      <span className={`font-data ${color}`}>{value}</span>
+      <span className={`font-data text-right ${color}`}>{value}</span>
     </div>
   );
 }

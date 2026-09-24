@@ -1,8 +1,9 @@
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
+import { useI18n } from "../i18n/context";
+import { cap, f, fill } from "../i18n/format";
 import {
   biocharYieldInterpolated,
   computeMassBalance,
-  MONTH_LABELS,
   PLANT_REFERENCE,
   SEASONALITY_CONSTANTS,
   type OperatingPoint,
@@ -19,6 +20,10 @@ interface Props {
  *  y muestra la cadena causal completa. El objetivo es que el dashboard no se vea igual
  *  sin importar el escenario: aquí se nombra explícitamente la diferencia. */
 export function OperatingNarrative({ month, bufferLevelKg, reactorTempC, op }: Props) {
+  const { t, n, p, locale, month: monthName } = useI18n();
+  const tx = t.dash.narrative;
+  const kgDay = t.dash.kgDay;
+
   const { real, nominal } = useMemo(() => {
     const at = (freshKg: number) => {
       const m = computeMassBalance(
@@ -32,74 +37,65 @@ export function OperatingNarrative({ month, bufferLevelKg, reactorTempC, op }: P
     return { real: at(op.freshKgPerDay), nominal: at(op.nominalKgPerDay) };
   }, [op, reactorTempC]);
 
-  const mes = MONTH_LABELS[month];
+  const mes = monthName(month);
   const reduced = op.reactorRatePct < 100;
   const bufferPct = (bufferLevelKg / SEASONALITY_CONSTANTS.bufferTargetKg) * 100;
 
-  let headline: string;
-  if (op.supplyStatus === "alta") {
-    headline = `En ${mes} la arribazón está en temporada alta, así que la planta corre a su ritmo nominal completo.`;
-  } else if (op.supplyStatus === "transicion") {
-    headline = `${mes.charAt(0).toUpperCase() + mes.slice(1)} es mes de transición: llega menos sargazo, pero la línea no se detiene.`;
-  } else {
-    headline = `${mes.charAt(0).toUpperCase() + mes.slice(1)} es núcleo duro de escasez: el reactor depende casi por completo del colchón de reserva.`;
-  }
+  const headline =
+    op.supplyStatus === "alta"
+      ? f(tx.headlineHigh, mes)
+      : f(op.supplyStatus === "transicion" ? tx.headlineTransition : tx.headlineLow, cap(mes, locale));
 
   const bufferNote =
     op.supplyStatus === "baja"
       ? bufferPct < 5
-        ? "Con el colchón vacío cae al piso de operación mínima; nunca se apaga del todo."
+        ? tx.bufferEmpty
         : bufferPct > 95
-        ? "Con el colchón lleno logra sostener el ritmo casi como en temporada alta."
-        : `Con el colchón al ${bufferPct.toFixed(0)}% recupera parte del ritmo.`
+          ? tx.bufferFull
+          : f(tx.bufferPartial, p(bufferPct))
       : op.supplyStatus === "transicion"
-      ? "El ajuste de +10 puntos por año récord (2026) ya está aplicado."
-      : "El colchón no limita nada en este mes: la materia prima entra fresca.";
+        ? tx.transitionNote
+        : tx.highNote;
 
   return (
     <div className="bg-bg-panel border border-border rounded-lg p-5 mb-4">
       <div className="flex items-baseline justify-between gap-3 flex-wrap mb-2">
-        <p className="font-display font-semibold text-base">Qué cambia en este escenario</p>
-        <span className="text-xs text-text-muted">
-          mes · colchón · temperatura → toda la planta
-        </span>
+        <p className="font-display font-semibold text-base">{tx.title}</p>
+        <span className="text-xs text-text-muted">{tx.hint}</span>
       </div>
 
-      <p className="text-sm leading-relaxed text-text-primary">
+      <p className="text-sm text-text-primary">
         {headline} <span className="text-text-secondary">{bufferNote}</span>
       </p>
 
       <div className="flex items-center gap-2 flex-wrap mt-4 mb-4">
-        <Chip label="Mes" value={mes} />
+        <Chip label={tx.chips.month} value={mes} />
         <Arrow />
-        <Chip label="Temporada" value={{ alta: "Alta", baja: "Baja", transicion: "Transición" }[op.supplyStatus]} />
+        <Chip label={tx.chips.season} value={t.dash.season.status[op.supplyStatus]} />
         <Arrow />
-        <Chip label="Ritmo" value={`${op.reactorRatePct.toFixed(0)}%`} strong />
+        <Chip label={tx.chips.rate} value={p(op.reactorRatePct)} strong />
         <Arrow />
-        <Chip label="Caudal" value={`${op.freshKgPerDay.toFixed(0)} kg/día`} strong />
+        <Chip label={tx.chips.flow} value={`${n(op.freshKgPerDay)} ${kgDay}`} strong />
         <Arrow />
-        <Chip label="Biochar" value={`${real.biocharKg.toFixed(1)} kg/día`} strong />
+        <Chip label={tx.chips.biochar} value={`${n(real.biocharKg, 1)} ${kgDay}`} strong />
       </div>
 
-      {reduced ? (
-        <p className="text-sm leading-relaxed text-text-secondary">
-          Frente a un día de temporada alta, la planta procesa{" "}
-          <Num>{real.mass.stage1WaterRemovedKg.toFixed(0)} kg</Num> de agua en la centrífuga en vez de{" "}
-          <Num>{nominal.mass.stage1WaterRemovedKg.toFixed(0)} kg</Num>, y produce{" "}
-          <Num>{real.biocharKg.toFixed(1)} kg</Num> de biochar en vez de{" "}
-          <Num>{nominal.biocharKg.toFixed(1)} kg</Num>:{" "}
-          <span className="text-deficit font-data">{op.deltaVsNominalPct.toFixed(0)}%</span> en toda la línea.
-          Todos los paneles de abajo ya reflejan este caudal reducido.
-        </p>
-      ) : (
-        <p className="text-sm leading-relaxed text-text-secondary">
-          La línea procesa los <Num>{op.nominalKgPerDay.toFixed(0)} kg/día</Num> completos:{" "}
-          <Num>{real.mass.stage1WaterRemovedKg.toFixed(0)} kg</Num> de agua removida en la centrífuga,{" "}
-          <Num>{real.mass.salidaEtapa2Kg.toFixed(1)} kg</Num> de sargazo acondicionado al reactor y{" "}
-          <Num>{real.biocharKg.toFixed(1)} kg</Num> de biochar. Baja el mes a enero o vacía el colchón para
-          ver caer toda la cadena.
-        </p>
-      )}
+      <p className="text-sm text-text-secondary">
+        {reduced
+          ? fill(tx.reduced,
+              <Num>{n(real.mass.stage1WaterRemovedKg)} kg</Num>,
+              <Num>{n(nominal.mass.stage1WaterRemovedKg)} kg</Num>,
+              <Num>{n(real.biocharKg, 1)} kg</Num>,
+              <Num>{n(nominal.biocharKg, 1)} kg</Num>,
+              <span className="text-deficit font-data">{p(op.deltaVsNominalPct)}</span>
+            )
+          : fill(tx.full,
+              <Num>{`${n(op.nominalKgPerDay)} ${kgDay}`}</Num>,
+              <Num>{n(real.mass.stage1WaterRemovedKg)} kg</Num>,
+              <Num>{n(real.mass.salidaEtapa2Kg, 1)} kg</Num>,
+              <Num>{n(real.biocharKg, 1)} kg</Num>
+            )}
+      </p>
     </div>
   );
 }
@@ -118,9 +114,13 @@ function Chip({ label, value, strong }: { label: string; value: string; strong?:
 }
 
 function Arrow() {
-  return <span className="text-text-muted text-xs" aria-hidden>→</span>;
+  return (
+    <span className="text-text-muted text-xs" aria-hidden>
+      →
+    </span>
+  );
 }
 
-function Num({ children }: { children: React.ReactNode }) {
+function Num({ children }: { children: ReactNode }) {
   return <span className="font-data text-text-primary">{children}</span>;
 }

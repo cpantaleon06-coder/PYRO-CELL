@@ -4,6 +4,7 @@
 // "estimación propia" no están tomadas de ningún estudio citado: son elecciones de
 // diseño del proyecto y deben presentarse como tales.
 
+import type { Lang } from "./lang";
 import {
   MONTHLY_REFERENCE_DETECTION,
   WET_TONNES_PER_KM2_DETECTED,
@@ -257,11 +258,6 @@ export function computeOperatingPoint(
   };
 }
 
-export const MONTH_LABELS: Record<string, string> = {
-  Jan: "enero", Feb: "febrero", Mar: "marzo", Apr: "abril", May: "mayo", Jun: "junio",
-  Jul: "julio", Aug: "agosto", Sep: "septiembre", Oct: "octubre", Nov: "noviembre", Dec: "diciembre",
-};
-
 export const ALL_MONTHS = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ] as const;
@@ -310,28 +306,76 @@ export function isWithinSargassumZone(lat: number, lng: number): boolean {
 /** Banderas de anomalía deterministas, calculadas sin el modelo. Sirven como red de
  *  seguridad: se pasan al modelo como pistas y se fusionan con su salida, de modo que
  *  un tonelaje absurdo o una ubicación fuera de zona siempre queden marcados. */
-export function deterministicAnomalyFlags(input: CitizenObservationInput): string[] {
+/** Textos de las banderas deterministas por idioma. Viven aquí (y no en los diccionarios
+ *  de UI) porque las genera la función Edge, que no debe cargar esos diccionarios. */
+const FLAG_TEXT: Record<
+  Lang,
+  { invalidTonnage: string; tonnageRange: string; invalidGps: string; outOfZone: string }
+> = {
+  es: {
+    invalidTonnage: "Tonelaje reportado inválido (debe ser un número positivo).",
+    tonnageRange: "Tonelaje ({0} t) fuera del rango plausible [{1}, {2}] t para una observación puntual.",
+    invalidGps: "Coordenadas GPS inválidas o ausentes.",
+    outOfZone: "Ubicación fuera de las zonas de sargazo conocidas (Caribe mexicano / Golfo de México).",
+  },
+  en: {
+    invalidTonnage: "Invalid reported tonnage (must be a positive number).",
+    tonnageRange: "Tonnage ({0} t) outside the plausible range [{1}, {2}] t for a single observation.",
+    invalidGps: "Invalid or missing GPS coordinates.",
+    outOfZone: "Location outside the known sargassum zones (Mexican Caribbean / Gulf of Mexico).",
+  },
+  fr: {
+    invalidTonnage: "Tonnage déclaré invalide (doit être un nombre positif).",
+    tonnageRange: "Tonnage ({0} t) hors de la plage plausible [{1}, {2}] t pour une observation ponctuelle.",
+    invalidGps: "Coordonnées GPS invalides ou absentes.",
+    outOfZone: "Emplacement hors des zones de sargasses connues (Caraïbes mexicaines / golfe du Mexique).",
+  },
+  pt: {
+    invalidTonnage: "Tonelagem informada inválida (deve ser um número positivo).",
+    tonnageRange: "Tonelagem ({0} t) fora da faixa plausível [{1}, {2}] t para uma observação pontual.",
+    invalidGps: "Coordenadas GPS inválidas ou ausentes.",
+    outOfZone: "Localização fora das zonas de sargaço conhecidas (Caribe mexicano / Golfo do México).",
+  },
+};
+
+export function deterministicAnomalyFlags(input: CitizenObservationInput, lang: Lang = "es"): string[] {
+  const text = FLAG_TEXT[lang];
   const flags: string[] = [];
   const { estimatedTonnage, gpsLocation } = input;
 
   if (!Number.isFinite(estimatedTonnage) || estimatedTonnage <= 0) {
-    flags.push("Tonelaje reportado inválido (debe ser un número positivo).");
+    flags.push(text.invalidTonnage);
   } else if (estimatedTonnage < PLAUSIBLE_TONNAGE_RANGE.min || estimatedTonnage > PLAUSIBLE_TONNAGE_RANGE.max) {
     flags.push(
-      `Tonelaje (${estimatedTonnage} t) fuera del rango plausible ` +
-        `[${PLAUSIBLE_TONNAGE_RANGE.min}, ${PLAUSIBLE_TONNAGE_RANGE.max}] t para una observación puntual.`
+      text.tonnageRange
+        .replace("{0}", String(estimatedTonnage))
+        .replace("{1}", String(PLAUSIBLE_TONNAGE_RANGE.min))
+        .replace("{2}", String(PLAUSIBLE_TONNAGE_RANGE.max))
     );
   }
 
   const { lat, lng } = gpsLocation ?? { lat: NaN, lng: NaN };
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-    flags.push("Coordenadas GPS inválidas o ausentes.");
+    flags.push(text.invalidGps);
   } else if (!isWithinSargassumZone(lat, lng)) {
-    flags.push("Ubicación fuera de las zonas de sargazo conocidas (Caribe mexicano / Golfo de México).");
+    flags.push(text.outOfZone);
   }
 
   return flags;
 }
+
+// ---------- Corriente 02: Río-Limpieza (rio-limpieza.m) ----------
+// Mismas cifras que el script de MATLAB, con el mismo grado de respaldo declarado ahí.
+export const RIVER_STREAM = {
+  interceptorKgPerDay: 50_000, // SPEC REAL: The Ocean Cleanup, Interceptor Original ("fully operational")
+  plasticFraction: 0.7, // RESPALDADO: Benioff Ocean Science Lab (66 %) y río Krueng Aceh (77.8 %), redondeo conservador
+  pyrolysisSplit: 0.5, // SUPUESTO ilustrativo: no hay caracterización del plástico recolectado
+  pyrolysisOilYield: 0.65, // SUPUESTO: cifra típica de literatura, no medida en este proyecto
+} as const;
+
+export const RIVER_PLASTIC_KG_PER_DAY = RIVER_STREAM.interceptorKgPerDay * RIVER_STREAM.plasticFraction;
+export const RIVER_PYRO_OIL_KG_PER_DAY =
+  RIVER_PLASTIC_KG_PER_DAY * RIVER_STREAM.pyrolysisSplit * RIVER_STREAM.pyrolysisOilYield;
 
 // ---------- Módulo de monitoreo (Track 6) ----------
 // Arquitectura híbrida de dos capas (esquema_datos.md §5):
